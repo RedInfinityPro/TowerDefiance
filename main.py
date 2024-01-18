@@ -18,7 +18,6 @@ all_sprites_list = pygame.sprite.Group()
 # colors
 def RANDOM_COLOR():
     return (random.randint(0,255),random.randint(0,255),random.randint(0,255))
-
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
@@ -130,6 +129,7 @@ class Path:
         self.matrixHeight = height
         self.matrix = []
         self.color = DARK_GRAY
+        self.path_rects = []
 
     def buildMatrix(self):
         for i in range(self.matrixHeight):
@@ -144,6 +144,14 @@ class Path:
         self.finder = AStarFinder()
         self.path, self.runs = self.finder.find_path(self.start, self.end, self.grid)
         self.path_coordinates = [(node.x, node.y) for node in self.path]
+        self.colliders = [pygame.Rect(x * 50, y * 50, 50, 50) for x, y in self.path_coordinates]
+
+    def check_collision(self, player_rect):
+        # Check collision with player_rect
+        for collider in self.colliders:
+            if collider.colliderect(player_rect):
+                return True
+        return False
     
     def draw(self, screen):
         for x, y in self.path_coordinates:
@@ -164,13 +172,13 @@ class Button:
         self.font_size = min(self.width // len(self.text) + 10, self.height)
         self.font = pygame.font.Font(None, self.font_size)
         self.clicked = False
-
+        self.collider = pygame.Rect(self.x, self.y, self.width, self.height)
         if image_path is not None:
             self.image_path = image_path
             self.load_image()
         else:
             self.image = None
-    
+
     def load_image(self):
         if self.image_path is not None:
             self.image = pygame.image.load(self.image_path)
@@ -184,6 +192,8 @@ class Button:
             text_surface = self.font.render(self.text, True, BLACK)
             text_rect = text_surface.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2))
             screen.blit(text_surface, text_rect)
+            if path.check_collision(self.collider):
+                self.text = "O"
     
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
@@ -231,6 +241,7 @@ class DragButton:
         self.upgrade_offset = 0
         self.upgrade_direction = 1
         self.showUpgrade = Button(self.x + 15, self.y - self.width, 25, 25, "Upgrade", WHITE,WHITE,"arrow-up.png")
+        self.player_rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def countDown(self):
         if not(self.upgrade) and self.placed:
@@ -257,6 +268,9 @@ class DragButton:
             self.update_upgrade_animation()
             self.showUpgrade.y = self.y - self.width + self.upgrade_offset
             self.showUpgrade.draw(screen)
+        
+        if path.check_collision(self.player_rect):
+            self.color = RED
 
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
@@ -287,7 +301,7 @@ class DragButton:
             self.showUpgrade.handle_event(event)
             if self.showUpgrade.clicked:
                 self.upgrade = False
-
+        
     def snap_to_grid(self):
         self.x = round((self.x - grid.grid_offset[0]) / self.cell_size) * self.cell_size + grid.grid_offset[0]
         self.y = round((self.y - grid.grid_offset[1]) / self.cell_size) * self.cell_size + grid.grid_offset[1]
@@ -295,6 +309,7 @@ class DragButton:
 
     def reset(self):
         self.is_dragging = False
+        self.player_rect.topleft = (self.x, self.y)
         self.color = self.inactive_color
         self.snap_to_grid()
 building = DragButton(300,300,50,50,BLUE,LIGHT_BLUE,grid.cell_size)
@@ -340,7 +355,11 @@ while running:
         # build
         buildSettings.handle_event(event)
         if buildSettings.clicked:
-            can_build = not(can_build)
+            if not((path.check_collision(building.player_rect))):
+                can_build = not(can_build)
+            else: 
+                can_build = True
+
             if can_build:
                 buildSettings.update_image("tools.png")
             else:
@@ -361,6 +380,7 @@ while running:
     # screen
     screen.fill(WHITE)
     terrain_generator.draw(screen)
+    # check path collder
     path.draw(screen)
     building.draw(screen)
     #ememies
@@ -380,7 +400,8 @@ while running:
         # free spots
         for freeSpot in freeSpots:
             freeSpot.draw(screen)
-
+        
+        # place down
         for i in range(3):
             freeSpots[i].x = building.x - 50
             freeSpots[i].y = building.y - 50 + (i * 50)
