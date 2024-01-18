@@ -96,7 +96,8 @@ class Ememies(pygame.sprite.Sprite):
         self.color = RANDOM_COLOR()
         self.path_coordinates = path_coordinates
         self.index = 0
-        self.speed_factor = random.uniform(1,1.9)
+        self.origionalSpeed = random.uniform(1,2)
+        self.speed_factor = 1
         self.image = pygame.Surface((2 * radius, 2 * radius), pygame.SRCALPHA)
         pygame.draw.circle(self.image, self.color, (radius, radius), radius)
         self.rect = self.image.get_rect(center=(x, y))
@@ -206,9 +207,9 @@ freeSpots = []
 for item in range(12):
     builSpot = Button(0,0,50,50,"X",FIRE_BRICK,CRIMSON)
     freeSpots.append(builSpot)
-settings = Button(0, screenHeight - 50, 50, 50,"Settings",WHITE,WHITE,"gear.png")
-eye = Button(0,screenHeight - 100,50,50,"Show",WHITE,WHITE,image_path = "hidden.png")
-buildSettings = Button(0, screenHeight - 150, 50, 50,"Tools",WHITE,WHITE,"maintenance.png")
+settings = Button(screenWidth - 50, screenHeight - 50, 50, 50,"Settings",WHITE,WHITE,"gear.png")
+eye = Button(screenWidth - 50,screenHeight - 100,50,50,"Show",WHITE,WHITE,image_path = "hidden.png")
+buildSettings = Button(screenWidth - 50, screenHeight - 150, 50, 50,"Tools",WHITE,WHITE,"maintenance.png")
 # Drag Button
 class DragButton:
     def __init__(self, x, y, width, height, active_color, inactive_color, cell_size):
@@ -296,13 +297,13 @@ class DragButton:
         self.is_dragging = False
         self.color = self.inactive_color
         self.snap_to_grid()
-building = DragButton(300,300,50,50,GRAY,LIGHT_BLUE,grid.cell_size)
-
+building = DragButton(300,300,50,50,BLUE,LIGHT_BLUE,grid.cell_size)
+# spon timer
 timer = 0
 def Spon(amount):
     global timer
     timer += 1
-    spawn_interval = 500
+    spawn_interval = 100
     x,y = path.path_coordinates[0]
     if (timer % spawn_interval == 0):
         for i in range(random.randint(0,amount)):
@@ -351,9 +352,11 @@ while running:
         if settings.clicked:
             showSettings = not(showSettings)
             if showSettings:
-                settings.update_image("gear.png")
-            else:
                 settings.update_image("gear(1).png")
+            else:
+                settings.update_image("gear.png")
+                for ememie in ememies_list:
+                    ememie.speed_factor = ememie.origionalSpeed
             settings.reset()
     # screen
     screen.fill(WHITE)
@@ -361,7 +364,13 @@ while running:
     path.draw(screen)
     building.draw(screen)
     #ememies
-    Spon(100)
+    if showSettings == False:
+        Spon(100)
+        for ememie in ememies_list:
+            ememie.speed_factor = ememie.origionalSpeed
+    else:
+        for ememie in ememies_list:
+            ememie.speed_factor = 0
     ememies_list.draw(screen)
     for ememie in ememies_list:
         ememie.move()
