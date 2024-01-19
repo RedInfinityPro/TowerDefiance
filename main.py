@@ -167,6 +167,10 @@ class Button:
     def reset(self):
         self.clicked = False
         self.color = self.inactive_color
+freeSpots = []
+for item in range(12):
+    builSpot = Button(0,0,50,50,"X",FIRE_BRICK,CRIMSON)
+    freeSpots.append(builSpot)
 # SquareGrid class
 class SquareGrid:
     def __init__(self, x, y, width, height, square_size, padding):
@@ -230,6 +234,41 @@ class Pannel:
                 self.x, self.y = 0, 0
             self.hidePannel.reset()
 pannel = Pannel(0,0, 100, screenWidth, WHITE)
+# settings Buttons
+class SettingButton:
+    def __init__(self, x, y, width, height, image_path):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.image_path = image_path
+        self.load_image()
+        self.clicked = False
+
+    def load_image(self):
+        self.image = pygame.image.load(self.image_path)
+        self.image = pygame.transform.scale(self.image, (self.width, self.height))
+        self.rect = self.image.get_rect(topleft=(self.x, self.y))
+
+    def update_image(self, new_image_path):
+        self.image_path = new_image_path
+        self.load_image()
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect.topleft)
+    
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos):
+                self.clicked = True
+
+    def reset(self):
+        self.clicked = False
+home = SettingButton(0, screenHeight - 50, 50, 50, "hut.png")
+settings = SettingButton(50, screenHeight -50, 50, 50, "gear.png")
+build = SettingButton(0, screenHeight - 100, 50, 50, "maintenance.png")
+show = SettingButton(50, screenHeight - 100, 50, 50, 'view.png')
 # player buildings
 class DragButton:
     def __init__(self, x, y, width, height, active_color, inactive_color, cell_size):
@@ -251,9 +290,10 @@ class DragButton:
         self.animation_direction = 1
         self.upgrade_timer_max = random.randint(1000,9000)
         self.upgrade_timer = 0
-        self.showUpgrade = SettingButton(self.x + 15, self.y - self.width, 25, 25, WHITE,WHITE,"arrow-up.png")
-        self.showBuild = SettingButton(self.x, self.y - self.width, 25, 25, WHITE,WHITE,"tools(1).png")
-        self.showRemove = SettingButton(self.x, self.y - self.width, 25, 25, WHITE,WHITE,"remove.png")
+        self.showUpgrade = SettingButton(self.x + 15, self.y - self.width, 25, 25,"arrow-up.png")
+        self.showBuild = SettingButton(self.x, self.y - self.width, 25, 25,"tools(1).png")
+        self.showRemove = SettingButton(self.x, self.y - self.width, 25, 25,"remove.png")
+        self.player_rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def upgrade_countDown(self):
         if not(self.upgrade) and self.placed:
@@ -271,13 +311,13 @@ class DragButton:
         self.animation_offset += self.animation_direction * self.animation_speed
         if abs(self.animation_offset) >= self.animation_range:
             self.animation_direction *= -1
-    
+
     def draw(self, screen):
-        self.countDown()
+        self.upgrade_countDown()
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
         if self.upgrade:
-            self.update_upgrade_animation()
-            self.showUpgrade.y = self.y - self.width + self.upgrade_offset
+            self.animation()
+            self.showUpgrade.y = self.y - self.width + self.animation_offset
             self.showUpgrade.draw(screen)
 
     def handle_event(self, event):
@@ -301,6 +341,25 @@ class DragButton:
                 self.y = new_y
         else:
             self.reset()
+
+        if event.type == pygame.MOUSEBUTTONDOWN and self.upgrade:
+            self.upgrade = False
+        
+        if self.upgrade:
+            self.showUpgrade.handle_event(event)
+            if self.showUpgrade.clicked:
+                self.upgrade = False
+
+    def snap_to_grid(self):
+        self.x = round((self.x - grid.grid_offset[0]) / self.cell_size) * self.cell_size + grid.grid_offset[0]
+        self.y = round((self.y - grid.grid_offset[1]) / self.cell_size) * self.cell_size + grid.grid_offset[1]
+        self.showUpgrade.x, self.showUpgrade.y = self.x + 15, self.y
+
+    def reset(self):
+        self.is_dragging = False
+        self.player_rect.topleft = (self.x, self.y)
+        self.color = self.inactive_color
+        self.snap_to_grid()
 building = DragButton(300,300,50,50,BLUE,LIGHT_BLUE,grid.cell_size)
 # ememies
 ememies_list = pygame.sprite.Group()
@@ -340,41 +399,6 @@ class Ememies(pygame.sprite.Sprite):
                 if self.index >= len(self.path_coordinates):
                     self.index = 0
                     ememies_list.remove(self)
-# settings Buttons
-class SettingButton:
-    def __init__(self, x, y, width, height, image_path):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.image_path = image_path
-        self.load_image()
-        self.clicked = False
-
-    def load_image(self):
-        self.image = pygame.image.load(self.image_path)
-        self.image = pygame.transform.scale(self.image, (self.width, self.height))
-        self.rect = self.image.get_rect(topleft=(self.x, self.y))
-
-    def update_image(self, new_image_path):
-        self.image_path = new_image_path
-        self.load_image()
-
-    def draw(self, screen):
-        screen.blit(self.image, self.rect.topleft)
-    
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mouse_pos = pygame.mouse.get_pos()
-            if self.rect.collidepoint(mouse_pos):
-                self.clicked = True
-
-    def reset(self):
-        self.clicked = False
-home = SettingButton(0, screenHeight - 50, 50, 50, "hut.png")
-settings = SettingButton(50, screenHeight -50, 50, 50, "gear.png")
-build = SettingButton(0, screenHeight - 100, 50, 50, "maintenance.png")
-show = SettingButton(50, screenHeight - 100, 50, 50, 'view.png')
 # spon timer
 timer = 0
 def Spon(amount):
@@ -397,6 +421,9 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             sys.exit()
+        building.handle_event(event)
+        if event.type == pygame.MOUSEBUTTONUP:
+            building.reset()
         # home
         home.handle_event(event)
         if home.clicked:
@@ -419,9 +446,10 @@ while running:
         if build.clicked:
             can_build = not(can_build)
             if can_build:
-                build.update_image('tools.png')
+                build.update_image("tools.png")
             else:
-                build.update_image('maintenance.png')
+                build.update_image("maintenance.png")
+            building.placed = True
             build.reset()
         # show grid
         show.handle_event(event)
@@ -432,8 +460,12 @@ while running:
             else:
                 show.update_image("hidden.png")
             show.reset()
-        # building
-        build.handle_event(event)
+        # build spot
+        for freeSpot in freeSpots:
+            freeSpot.handle_event(event)
+            if freeSpot.clicked:
+                freeSpot.reset()
+        # pannel
         pannel.handle_event(event)
     screen.fill(WHITE)
     terrain_generator.draw(screen)
@@ -449,9 +481,34 @@ while running:
     ememies_list.draw(screen)
     for ememie in ememies_list:
         ememie.move()
+    # player buildings
+    building.draw(screen)
     #update grid
     if show_grid:
         grid.draw(screen)
+     # can build
+    if can_build:
+        building.placed = False
+        # free spots
+        for freeSpot in freeSpots:
+            freeSpot.draw(screen)
+        
+        # place down
+        for i in range(3):
+            freeSpots[i].x = building.x - 50
+            freeSpots[i].y = building.y - 50 + (i * 50)
+
+        for i in range(3, 6):
+            freeSpots[i].x = building.x + 50
+            freeSpots[i].y = building.y - 50 + ((i - 3) * 50)
+
+        for i in range(6, 9):
+            freeSpots[i].x = building.x - 50 + (i - 6) * 50
+            freeSpots[i].y = building.y + 50
+        
+        for i in range(9, 12):
+            freeSpots[i].x = building.x - 50 + (i - 9) * 50
+            freeSpots[i].y = building.y - 50
     # pannel 
     pannel.draw(screen)
     # menu buttons
@@ -459,7 +516,6 @@ while running:
     settings.draw(screen)
     build.draw(screen)
     show.draw(screen)
-    building.draw(screen)
     # update
     pygame.display.flip()
     pygame.display.update()
