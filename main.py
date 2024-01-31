@@ -54,35 +54,36 @@ class MainGrid:
             pygame.draw.line(screen, RED, (0, y * self.cell_size + self.grid_offset[1]),
                              (screen.get_width(), y * self.cell_size + self.grid_offset[1]))
 grid = MainGrid(cell_size=50)
-# ground Segment
-class Segment:
-    def __init__(self, x, y, width, height, active_color, inactive_color):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.active_color = active_color
-        self.inactive_color = inactive_color
-        self.color = self.inactive_color
-        self.clicked = False
+# Map Manager
+class MapManager:
+    def __init__(self):
+        self.main_map = None
+        self.smaller_maps = {}
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
-    
-    def handle_event(self, event):
-        mouse_pos = pygame.mouse.get_pos()
-        if self.x < mouse_pos[0] < self.x + self.width and self.y < mouse_pos[1] < self.y + self.height:
-            self.color = self.active_color
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    self.clicked = True
-                    self.color = self.active_color
+    def save_main_map(self, map_data):
+        self.main_map = map_data
+
+    def load_main_map(self):
+        return self.main_map
+
+    def save_smaller_map(self, key, map_data):
+        self.smaller_maps[key] = map_data
+
+    def load_smaller_map(self, key):
+        if key in self.smaller_maps:
+            return self.smaller_maps[key]
         else:
-            self.color = self.inactive_color
+            print(f"Smaller map with key '{key}' not found.")
+            return None
 
-    def reset(self):
-        self.clicked = False
-        self.color = self.inactive_color
+    def generate_and_save_main_map(self, screen_width, screen_height, cell_size):
+        new_main_map = Ground(screen_width, screen_height, cell_size).ground_data
+        self.save_main_map(new_main_map)
+
+    def generate_and_save_smaller_map(self, key, screen_width, screen_height, cell_size):
+        new_smaller_map = Ground(screen_width, screen_height, cell_size).ground_data
+        self.save_smaller_map(key, new_smaller_map)
+map_manager = MapManager()
 # ground Segment
 class Segment:
     def __init__(self, x, y, width, height, active_color, inactive_color):
@@ -156,6 +157,14 @@ class Ground:
         self.ground_data = self.generate_ground()
         self.build()
 
+    def get_ground_data(self):
+        return self.ground_data
+
+    def recreate_saved_map(self, saved_map):
+        self.segmentList = []
+        self.ground_data = saved_map
+        self.build()
+
     def build(self):
         for item in self.ground_data:
             cell_x, cell_y = item[0]
@@ -186,7 +195,7 @@ class Path:
         self.matrixWidth = width
         self.matrixHeight = height
         self.matrix = []
-        self.color = DARK_GRAY
+        self.color = GRAY
         self.path_rects = []
         self.grid = None
         self.start = None
@@ -284,6 +293,36 @@ class Text:
         if self.rendered_text is None:
             self.rendered_text = self.font.render(self.text, True, self.color)
         screen.blit(self.rendered_text, self.position)
+# wrap text
+class WrapText:
+    def __init__(self, text, font_size, color, position, max_width):
+        self.text = text
+        self.font_size = font_size
+        self.max_width = max_width
+        self.font = pygame.font.Font(None, self.font_size)
+        self.lines = self.update()
+        self.color = color
+        self.position = position
+
+    def update(self):
+        words = self.text.split()
+        lines = []
+        current_line = []
+        for word in words:
+            # Check if adding the next word exceeds the max width
+            if self.font.size(' '.join(current_line + [word]))[0] <= self.max_width:
+                current_line.append(word)
+            else:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+
+        lines.append(' '.join(current_line))
+        return lines
+
+    def render(self, screen):
+        for i, line in enumerate(self.lines):
+            text_surface = self.font.render(line, True, self.color)
+            screen.blit(text_surface, (self.position[0], self.position[1] + i * self.font.get_linesize()))
 # button
 class Button:
     def __init__(self, x, y, width, height, text, active_color, inactive_color):
@@ -295,13 +334,14 @@ class Button:
         self.active_color = active_color
         self.inactive_color = inactive_color
         self.color = self.inactive_color
+        self.textColor = BLACK
         self.font_size = min(self.width // len(self.text) + 10, self.height)
         self.font = pygame.font.Font(None, self.font_size)
         self.clicked = False
 
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height), 2)
-        text_surface = self.font.render(self.text, True, BLACK)
+        text_surface = self.font.render(self.text, True, self.textColor)
         text_rect = text_surface.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2))
         screen.blit(text_surface, text_rect)
     
@@ -351,19 +391,140 @@ class SettingButton:
         self.clicked = False
 # start menu
 class Main_Menu():
-    def __init__(self, width, height, position=(0, 0)):
+    def __init__(self, width, height, position=(0, 0), background_image_path=None):
         self.width = width
         self.height = height
         self.x, self.y = position[0], position[1]
         self.visible = True
+        self.showTutorial = False
+        self.showSettings = False
         self.title = "Menu"
-        self.titleText = Text(self.title, 100, BLACK, ((screenWidth / 2) - (len(self.title) * 25),36))
-        self.play = Button()
-    
+        self.background_image = pygame.image.load(background_image_path) if background_image_path else None
+        vertical_center = screenHeight // 2
+        padding = 10
+        self.backButton = Button(screenWidth // 2 - 125, 50, 100, 100, "Back", BLACK, WHITE)
+        self.titleText = Text(self.title, 100, WHITE, ((screenWidth / 2) - (len(self.title) * 24),36))
+        self.play_button = Button(screenWidth // 2 - 100, vertical_center - 160 - padding, 200, 100, "Play", BLACK, WHITE)
+        self.options_button = Button(screenWidth // 2 - 100, vertical_center - 50, 200, 100, "Options", BLACK, WHITE)
+        self.tutorial_button = Button(screenWidth // 2 - 100, vertical_center + 60 + padding, 200, 100, "Tutorial", BLACK, WHITE)
+        self.quit_button = Button(screenWidth // 2 - 100, vertical_center + 170 + 2 * padding, 200, 100, "Quit", BLACK, WHITE)
+        self.backButton.textColor = WHITE
+        self.play_button.textColor = WHITE
+        self.options_button.textColor = WHITE
+        self.tutorial_button.textColor = WHITE
+        self.quit_button.textColor = WHITE
+        self.tutorial()
+        self.settings()
+
+    def tutorial(self):
+        text = "This is a sample text that we want to wrap within a box to prevent it from leaving the square."
+        self.tutorial_text = WrapText(text,20,WHITE,((screenWidth / 2) - 125,200),(self.width) - 432.9)
+        
+    def settings(self):
+        self.sound = Text("Music", 36, BLACK, (230, 200))
+        self.sound_slider = Slider(screen, 230, 240, 200, 10, min=0, max=100, step=1, initial=100)
+        self.sound_output = TextBox(screen, 440, 210, 50, 50, fontSize=25)
+        self.sound_output.disable()
+        self.sound_effects = Text("Sound Effects", 36, BLACK, (230, 300))
+        self.sound_effects_slider = Slider(screen, 230, 340, 200, 10, min=0, max=100, step=1, initial=100)
+        self.sound_effects_output = TextBox(screen, 440, 310, 50, 50, fontSize=25)
+        self.sound_effects_output.disable()
+        self.frame_rate = Text("Frame Rate", 36, BLACK, (230, 400))
+        self.frame_rate_slider = Slider(screen, 230, 450, 128, 10, min=1, max=64, step=1, initial=64)
+        self.frame_rate_output = TextBox(screen, 440, 413, 50, 50, fontSize=25)
+        self.frame_rate_output.disable()
+        self.brightness_text = Text("Brightness", 36, BLACK, (230, 500))
+        self.brightness_slider = Slider(screen, 230, 550, 200, 10, min=0, max=1.0, step=0.1, initial=1.0)
+        self.brightness_output = TextBox(screen, 440, 513, 50, 50, fontSize=25)
+        self.brightness_output.disable()
+
     def draw(self, screen):
+        global Background_volume, soundEffect_volume, frameRate, brightness
         if self.visible:
-            self.titleText.render(screen)
-menuWindow = Main_Menu(screenHeight, screenWidth, (0, 0))
+            if self.background_image:
+                image_rect = self.background_image.get_rect()
+                image_rect.center = (self.x + self.width // 2, self.y + self.height // 2)
+                image_rect = image_rect.inflate(((self.width) - 400 - image_rect.width, (self.height) - 40 - image_rect.height))
+                screen.blit(pygame.transform.scale(self.background_image, (image_rect.width, image_rect.height)), image_rect.topleft)
+
+            if not(self.showTutorial or self.showSettings):
+                self.titleText.render(screen)
+                self.play_button.draw(screen)
+                self.options_button.draw(screen)
+                self.tutorial_button.draw(screen)
+                self.quit_button.draw(screen)
+            else:
+                self.backButton.draw(screen)
+                if (self.showTutorial):
+                    self.tutorial_text.render(screen)
+                else:
+                    # sliders
+                    self.sound.render(screen)
+                    self.sound_effects.render(screen)
+                    self.frame_rate.render(screen)
+                    self.sound_slider.draw()
+                    self.sound_output.draw()
+                    self.sound_output.setText(self.sound_slider.getValue())
+                    Background_volume = self.sound_slider.getValue()
+                    self.sound_effects_slider.draw()
+                    self.sound_effects_output.draw()
+                    self.sound_effects_output.setText(self.sound_effects_slider.getValue())
+                    soundEffect_volume = self.sound_effects_slider.getValue()
+                    self.frame_rate_slider.draw()
+                    self.frame_rate_output.draw()
+                    self.frame_rate_output.setText(self.frame_rate_slider.getValue())
+                    frameRate = self.frame_rate_slider.getValue()
+                    self.brightness_text.render(screen)
+                    self.brightness_slider.draw()
+                    self.brightness_output.draw()
+                    self.brightness_output.setText(round(self.brightness_slider.getValue(),2))
+                    brightness = round(self.brightness_slider.getValue(),2)
+
+    def handle_event(self, event):
+        global running, HomeScreen
+        if self.visible:
+            pygame_widgets.update(event)
+            if not(self.showTutorial or self.showSettings):
+                button_list = [self.backButton, self.play_button, self.options_button, self.tutorial_button, self.quit_button]
+                for button in button_list:
+                    button.textColor = BLACK if button.color == button.active_color else WHITE
+
+                self.play_button.handle_event(event)
+                self.options_button.handle_event(event)
+                self.tutorial_button.handle_event(event)
+                self.quit_button.handle_event(event)
+
+                if self.play_button.clicked:
+                    HomeScreen = False
+                    self.play_button.reset()
+
+                if self.options_button.clicked:
+                    self.showSettings = True
+                    self.options_button.reset()
+
+                if self.tutorial_button.clicked:
+                    self.showTutorial = True
+                    self.tutorial_button.reset()
+
+                if self.quit_button.clicked:
+                    running = False
+                    sys.exit()
+            else:
+                self.backButton.handle_event(event)
+                if self.backButton.clicked:
+                    if self.showTutorial:
+                        self.showTutorial = False
+                    else:
+                        self.showSettings = False
+                    self.backButton.reset()
+menuWindow = Main_Menu(screenHeight, screenWidth, (0, 0),r'New folder\images\images.png')
+# brightness
+def adjust_brightness(surface, brightness):
+    overlay = pygame.Surface((screenWidth, screenHeight))
+    overlay.fill((0, 0, 0))
+    overlay.set_alpha(255 - int(brightness * 255))
+    surface.blit(overlay, (0, 0))
+
 # map details
 paths = []
 def AddPath():
@@ -371,7 +532,6 @@ def AddPath():
         path = Path(screenWidth // 50, screenHeight // 50)
         path.makePath()
         paths.append(path)
-AddPath()
 
 enemies_timer = 0
 def spawn_enemies(amount):
@@ -386,18 +546,26 @@ def spawn_enemies(amount):
             ememy = Enemies(start_x * 50, start_y * 50 - (i * random.randint(10, 50)), 10, path.path_coordinates)
             ememies_list.add(ememy)
 
-time = 0
+ememie_timer = 0
 def TransitionMaps():
-    global time, ememies_list, paths
-    time += 1
-    if time % 500 == 0:
+    global ememie_timer, ememies_list, paths
+    ememie_timer += 1
+    if ememie_timer % 500 == 0:
         ememies_list = pygame.sprite.Group()
         terrain_generator.regenerate_map()
         paths = []
         AddPath()
 
+randomMap_times = 0
+def RendomizeMap():
+    global randomMap_times
+    if randomMap_times == 0:
+        for x in range(random.randint(1,100)):
+            terrain_generator.regenerate_map()
+            randomMap_times += 1
 # loop
 running = True
+brightness = 1.0
 frameRate = 64
 Background_volume = 1.0
 soundEffect_volume = 1.0
@@ -407,21 +575,45 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             sys.exit()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                if not(HomeScreen):
+                    HomeScreen = True
+        menuWindow.handle_event(event)
+        if not(HomeScreen):
+            terrain_generator.handle_event(event)
     screen.fill(WHITE)
     # map
     terrain_generator.draw(screen)
-    for path in paths:
-        path.draw(screen)
 
     if HomeScreen:
         TransitionMaps()
+        if len(paths) <= 0:
+            AddPath()
+        # path
+        for path in paths:
+            path.draw(screen)
+        # ememies
         spawn_enemies(100)
-        ememies_list.draw(screen)
-        for ememie in ememies_list:
-            ememie.move()
+        if len(ememies_list):
+            ememies_list.draw(screen)
+            for ememie in ememies_list:
+                ememie.move()
+    else:
+        ememies_list = pygame.sprite.Group()
+        paths = []
+        RendomizeMap()
+        path.color = DARK_GRAY
+        loaded_main_map = map_manager.load_main_map()
+        if loaded_main_map:
+            pass
+        else:
+            map_manager.generate_and_save_main_map(screenWidth, screenHeight, 50)
     # windows
-    menuWindow.draw(screen)
+    if HomeScreen:
+        menuWindow.draw(screen)
     # update
+    adjust_brightness(screen, brightness)
     pygame.display.flip()
     pygame.display.update()
-    clock.tick(64)
+    clock.tick(frameRate)
