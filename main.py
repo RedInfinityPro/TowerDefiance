@@ -10,6 +10,7 @@ from pygame_widgets.textbox import TextBox
 import numpy as np
 import random, time, sys
 from perlin_noise import PerlinNoise
+from pathfinding.core.node import Node
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
 import time
@@ -17,7 +18,7 @@ import time
 pygame.init()
 mixer.init()
 screenWidth, screenHeight = 700, 700
-screen = pygame.display.set_mode((screenWidth, screenHeight), pygame.RESIZABLE)
+screen = pygame.display.set_mode((screenWidth, screenHeight))
 pygame.display.set_caption("Game")
 clock = pygame.time.Clock()
 pygame.display.flip()
@@ -53,6 +54,35 @@ class MainGrid:
             pygame.draw.line(screen, RED, (0, y * self.cell_size + self.grid_offset[1]),
                              (screen.get_width(), y * self.cell_size + self.grid_offset[1]))
 grid = MainGrid(cell_size=50)
+# ground Segment
+class Segment:
+    def __init__(self, x, y, width, height, active_color, inactive_color):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.active_color = active_color
+        self.inactive_color = inactive_color
+        self.color = self.inactive_color
+        self.clicked = False
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+    
+    def handle_event(self, event):
+        mouse_pos = pygame.mouse.get_pos()
+        if self.x < mouse_pos[0] < self.x + self.width and self.y < mouse_pos[1] < self.y + self.height:
+            self.color = self.active_color
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.clicked = True
+                    self.color = self.active_color
+        else:
+            self.color = self.inactive_color
+
+    def reset(self):
+        self.clicked = False
+        self.color = self.inactive_color
 # ground Segment
 class Segment:
     def __init__(self, x, y, width, height, active_color, inactive_color):
@@ -150,6 +180,92 @@ class Ground:
                 self.regenerate_map()
                 item.reset()
 terrain_generator = Ground(screenWidth, screenHeight, 50)
+# path
+class Path:
+    def __init__(self, width, height):
+        self.matrixWidth = width
+        self.matrixHeight = height
+        self.matrix = []
+        self.color = DARK_GRAY
+        self.path_rects = []
+        self.grid = None
+        self.start = None
+        self.end = None
+        self.finder = None
+        self.path = None
+        self.path_coordinates = []
+        self.colliders = []
+
+    def buildMatrix(self):
+        self.matrix = [[1] * self.matrixWidth for _ in range(self.matrixHeight)]
+
+    def makePath(self):
+        self.buildMatrix()
+        self.grid = Grid(matrix=self.matrix)
+        self.start = self.grid.node(random.randint(0, self.matrixWidth - 1), 0)
+        end_y = 13
+        while True:
+            end_x = random.randint(0, self.matrixWidth - 1)
+            if (end_x, end_y) != (self.start.x, self.start.y):
+                self.end = self.grid.node(end_x, end_y)
+                break
+
+        self.finder = AStarFinder()
+        self.path, self.runs = self.finder.find_path(self.start, self.end, self.grid)
+        self.path_coordinates = [(node.x, node.y) for node in self.path]
+        self.colliders = [pygame.Rect(x * 50, y * 50, 50, 50) for x, y in self.path_coordinates]
+
+    def regeneratePath(self):
+        self.makePath()
+
+    def check_collision(self, player_rect):
+        # Check collision with player_rect
+        for collider in self.colliders:
+            if collider.colliderect(player_rect):
+                return True
+        return False
+
+    def draw(self, screen):
+        for x, y in self.path_coordinates:
+            pygame.draw.rect(screen, self.color, (x * 50, y * 50, 50, 50))
+# ememies
+ememies_list = pygame.sprite.Group()
+class Enemies(pygame.sprite.Sprite):
+    def __init__(self,x,y,radius, path_coordinates):
+        pygame.sprite.Sprite.__init__(self)
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.color = RANDOM_COLOR()
+        self.path_coordinates = path_coordinates
+        self.index = 0
+        self.origionalSpeed = random.uniform(1,2)
+        self.speed_factor = 1
+        self.image = pygame.Surface((2 * radius, 2 * radius), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, self.color, (radius, radius), radius)
+        self.rect = self.image.get_rect(center=(x, y))
+
+    def move(self):
+        for x, y in self.path_coordinates:
+            x, y = self.path_coordinates[self.index]
+            x *= (52)
+            y *= (50)
+            if self.rect.x > x:
+                self.rect.x -= int(1 * self.speed_factor)
+            elif self.rect.x < x:
+                self.rect.x += int(1 * self.speed_factor)
+
+            if self.rect.y > y:
+                self.rect.y -= int(1 * self.speed_factor)
+            elif self.rect.y < y:
+                self.rect.y += int(1 * self.speed_factor)
+
+            threshold = 1
+            if abs(self.rect.x - x) <= threshold and abs(self.rect.y - y) <= threshold:
+                self.index += 1
+                if self.index >= len(self.path_coordinates):
+                    self.index = 0
+                    ememies_list.remove(self)
 # text
 class Text:
     def __init__(self, text, font_size, color, position):
@@ -168,37 +284,6 @@ class Text:
         if self.rendered_text is None:
             self.rendered_text = self.font.render(self.text, True, self.color)
         screen.blit(self.rendered_text, self.position)
-# settings Buttons
-class SettingButton:
-    def __init__(self, x, y, width, height, image_path):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.image_path = image_path
-        self.load_image()
-        self.clicked = False
-
-    def load_image(self):
-        self.image = pygame.image.load(self.image_path)
-        self.image = pygame.transform.scale(self.image, (self.width, self.height))
-        self.rect = self.image.get_rect(topleft=(self.x, self.y))
-
-    def update_image(self, new_image_path):
-        self.image_path = new_image_path
-        self.load_image()
-
-    def draw(self, screen):
-        screen.blit(self.image, self.rect.topleft)
-
-    def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mouse_pos = pygame.mouse.get_pos()
-            if self.rect.collidepoint(mouse_pos):
-                self.clicked = True
-
-    def reset(self):
-        self.clicked = False
 # button
 class Button:
     def __init__(self, x, y, width, height, text, active_color, inactive_color):
@@ -233,331 +318,110 @@ class Button:
     def reset(self):
         self.clicked = False
         self.color = self.inactive_color
-# SquareGrid class
-class SquareGrid:
-    def __init__(self, x, y, width, height, square_size, padding):
+# settings Buttons
+class SettingButton:
+    def __init__(self, x, y, width, height, image_path):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
-        self.square_size = square_size
-        self.padding = padding
-        self.squares = []
-    def create_squares(self):
-        num_squares_x = (self.width - self.padding) // (self.square_size + self.padding)
-        num_squares_y = (self.height - self.padding) // (self.square_size + self.padding)
-        for i in range(num_squares_x):
-            for j in range(num_squares_y):
-                square_x = self.x + i * (self.square_size + self.padding) + self.padding
-                square_y = self.y + j * (self.square_size + self.padding) + self.padding
-                self.squares.append((square_x, square_y, self.square_size))
-    def draw(self, screen):
-        for square in self.squares:
-            pygame.draw.rect(screen, DARK_GRAY, pygame.Rect(square[0], square[1], square[2], square[2]))
-    def update_position(self, new_x, new_y):
-        self.x = new_x
-        self.y = new_y
-        self.create_squares()
-# Helper class for draggable objects
-class DraggableImageButton:
-    def __init__(self, x, y, width, height, image_path, cell_size, window_width, window_height, square_grid, panel_x, panel_width):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.image_original = pygame.image.load(image_path)
-        self.image_original = pygame.transform.scale(self.image_original, (width, height))
-        self.image = self.image_original.copy()
+        self.image_path = image_path
+        self.load_image()
         self.clicked = False
-        self.offset = (0, 0)
-        self.cell_size = cell_size
-        self.window_width = window_width
-        self.window_height = window_height
-        self.square_grid = square_grid
-        self.panel_x = panel_x
-        self.panel_width = panel_width
-        self.snap_to_square_grid = True
+
+    def load_image(self):
+        self.image = pygame.image.load(self.image_path)
+        self.image = pygame.transform.scale(self.image, (self.width, self.height))
+        self.rect = self.image.get_rect(topleft=(self.x, self.y))
+
+    def update_image(self, new_image_path):
+        self.image_path = new_image_path
+        self.load_image()
 
     def draw(self, screen):
         screen.blit(self.image, self.rect.topleft)
 
-    def update_size(self, square):
-        if self.snap_to_square_grid and len(square) == 4 and square[2] == square[3]:
-            self.image = pygame.transform.scale(self.image_original, (square[2], square[2]))
-
-    def snap_to_grid(self):
-        if self.rect.colliderect(pygame.Rect(self.panel_x, 0, self.panel_width, self.window_height)):
-            self.snap_to_square_grid = True
-            button_center = self.rect.center
-            for square in self.square_grid.squares:
-                square_rect = pygame.Rect(square[0], square[1], square[2], square[2])
-                if square_rect.collidepoint(button_center):
-                    self.rect.x = square[0]
-                    self.rect.y = square[1]
-                    self.update_size(square)
-        else:
-            self.rect.x = round(self.rect.x / self.cell_size) * self.cell_size
-            self.rect.y = round(self.rect.y / self.cell_size) * self.cell_size
-            self.image = self.image_original.copy()
-            self.snap_to_square_grid = False
-    
-    def limit_position(self):
-        self.rect.x = max(0, min(self.rect.x, self.window_width - self.rect.width))
-        self.rect.y = max(0, min(self.rect.y, self.window_height - self.rect.height))
-
     def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.rect.collidepoint(event.pos):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos):
                 self.clicked = True
-                self.offset = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            self.clicked = False
-            self.snap_to_grid()
-            self.limit_position()
-        elif event.type == pygame.MOUSEMOTION:
-            if self.clicked:
-                self.rect.x = event.pos[0] - self.offset[0]
-                self.rect.y = event.pos[1] - self.offset[1]
-                self.limit_position()
-                self.snap_to_grid()
-# panel
-class Panel:
-    def __init__(self, x, y, width, height, color):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.color = color
-        self.hidePannel_origPos = (50,0)
-        self.hidePannel = Button(self.hidePannel_origPos[0],self.hidePannel_origPos[1],50,50,"<-",DARK_GRAY,RED)
-        self.home = SettingButton(0, screenHeight - 50, 50, 50, r"New folder\images\hut.png")
-        self.settings = SettingButton(50, screenHeight -50, 50, 50, r"New folder\images\gear.png")
-        self.buildSettings = SettingButton(0, screenHeight - 100, 50, 50, r"New folder\images\maintenance.png")
-        self.show = SettingButton(50, screenHeight - 100, 50, 50, r'New folder\images\view.png')
-        self.squareGrid = SquareGrid(0, 60, self.width, self.height - 160, 35, 10)
-        self.squareGrid.create_squares()
-        self.testButton = DraggableImageButton(screenWidth / 2, screenHeight / 2,50,50,r"New folder\images\gear.png",grid.cell_size,screenWidth, screenHeight, self.squareGrid, self.width,5)
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
-        if not(self.testButton.snap_to_square_grid):
-            self.testButton.draw(screen)
-
-        self.hidePannel.draw(screen)
-        if self.hidePannel.x == self.hidePannel_origPos[0] and self.hidePannel.y == self.hidePannel_origPos[1]:
-            self.home.draw(screen)
-            self.settings.draw(screen)
-            self.buildSettings.draw(screen)
-            self.show.draw(screen)
-            self.squareGrid.draw(screen)
-            if self.testButton.snap_to_square_grid:
-                self.testButton.draw(screen)
-    
-    def buttonHandle_event(self, event):
-        global showSettings, can_build, show_grid
-        if showSettings == False:
-            self.home.handle_event(event)
-            if self.home.clicked:
-                self.home.update_image(r"New folder\images\home.png")
-                self.home.reset()
-            elif not(self.home.clicked):
-                self.home.update_image(r"New folder\images\hut.png")
-            self.settings.handle_event(event)
-            if self.settings.clicked:
-                showSettings = True
-                self.settings.update_image(r"New folder\images\gear(1).png")
-                self.settings.reset()
-            elif not(self.settings.clicked):
-                self.settings.update_image(r"New folder\images\gear.png")
-            self.buildSettings.handle_event(event)
-            if self.buildSettings.clicked:
-                can_build = not(can_build)
-                if can_build:
-                    self.buildSettings.update_image(r"New folder\images\tools.png")
-                else:
-                    self.buildSettings.update_image(r"New folder\images\maintenance.png")
-                self.buildSettings.reset()
-            self.show.handle_event(event)
-            if self.show.clicked:
-                show_grid = not(show_grid)
-                if show_grid:
-                    self.show.update_image(r"New folder\images\hidden.png")
-                else:
-                    self.show.update_image(r"New folder\images\view.png")
-                self.show.reset()
-
-    def move_buttons(self):
-        self.show.clicked = not(self.show.clicked)
-        self.buildSettings.clicked = not(self.buildSettings.clicked)
-        self.width, self.height = 100, screenHeight
-        self.home.y, self.settings.y = screenHeight - 50, screenHeight - 50
-        self.buildSettings.y, self.show.y = screenHeight - 100, screenHeight - 100
-
-    def update(self):
-        self.move_buttons()
-        self.testButton.window_height, self.testButton.window_width = screenHeight, screenWidth
-
-    def handle_event(self, event):
-        self.hidePannel.handle_event(event)
-        if self.hidePannel.x == self.hidePannel_origPos[0] and self.hidePannel.y == self.hidePannel_origPos[1]:
-            self.buttonHandle_event(event)
-        
-        if self.hidePannel.clicked:
-            if self.hidePannel.x == self.hidePannel_origPos[0] and self.hidePannel.y == self.hidePannel_origPos[1]:
-                self.hidePannel.x, self.hidePannel.y = 0, 0
-                self.hidePannel.text = "->"
-                self.x, self.y = -self.width, 0
-            else:
-                self.hidePannel.x, self.hidePannel.y = self.hidePannel_origPos
-                self.hidePannel.text = "<-"
-                self.x, self.y = 0, 0
-            self.hidePannel.reset()
-        self.testButton.handle_event(event)
-panel = Panel(0,0, 100, screenWidth, WHITE)
-#menu
-class MenuWindow:
+    def reset(self):
+        self.clicked = False
+# start menu
+class Main_Menu():
     def __init__(self, width, height, position=(0, 0)):
         self.width = width
         self.height = height
         self.x, self.y = position[0], position[1]
         self.visible = True
-        self.close_button = Button(self.x + self.width - 40, self.y, 40,40,"X",RED,DARK_GRAY)
         self.title = "Menu"
-        self.background_color = WHITE
-        self.titleText = Text(self.title, 36, BLACK, ((screenWidth / 2) - (len(self.title) * 10),36))
-        self.showSettings = True
-        self.showFixBug = False
-        self.showSaveQuit = False
-        # buttons
-        self.settings = Button(self.x + 10, self.y + 100,100,50,"Settings",DARK_GRAY,BLUE)
-        self.fixBug = Button(self.x + 120, self.y + 100,108,50,"Report Bug",DARK_GRAY,BLUE)
-        self.saveQuit = Button(self.x + 237, self.y + 100,150,50,"Save and Quit",DARK_GRAY,BLUE)
-        # Sliders
-        self.sound = Text("Music", 36, BLACK, (10, 160))
-        self.sound_slider = Slider(screen, 10, 200, 200, 10, min=0, max=100, step=1, initial=100)
-        self.sound_output = TextBox(screen, 220, 180, 50, 50, fontSize=25)
-        self.sound_output.disable()
-
-        self.sound_effects = Text("Sound Effects", 36, BLACK, (10, 260))
-        self.sound_effects_slider = Slider(screen, 10, 300, 200, 10, min=0, max=100, step=1, initial=100)
-        self.sound_effects_output = TextBox(screen, 220, 270, 50, 50, fontSize=25)
-        self.sound_effects_output.disable()
-
-        self.frame_rate = Text("Frame Rate", 36, BLACK, (10, 360))
-        self.frame_rate_slider = Slider(screen, 10, 400, 128, 10, min=1, max=64, step=1, initial=64)
-        self.frame_rate_output = TextBox(screen, 148, 370, 50, 50, fontSize=25)
-        self.frame_rate_output.disable()
-
+        self.titleText = Text(self.title, 100, BLACK, ((screenWidth / 2) - (len(self.title) * 25),36))
+        self.play = Button()
+    
     def draw(self, screen):
-        global frameRate,Background_volume,soundEffect_volume
         if self.visible:
-            pygame.draw.rect(screen, self.background_color, (self.x - 2, self.y - 2, self.width + 4, self.height + 4))
-            pygame.draw.rect(screen, RED, (self.x, self.y, self.width, self.height), 2)
-            self.close_button.draw(screen)
             self.titleText.render(screen)
-            # buttons
-            self.settings.draw(screen)
-            self.fixBug.draw(screen)
-            self.saveQuit.draw(screen)
-            
-            if showSettings:
-                # sliders
-                self.sound.render(screen)
-                self.sound_effects.render(screen)
-                self.frame_rate.render(screen)
+menuWindow = Main_Menu(screenHeight, screenWidth, (0, 0))
+# map details
+paths = []
+def AddPath():
+    for _ in range(random.randint(1,3)):
+        path = Path(screenWidth // 50, screenHeight // 50)
+        path.makePath()
+        paths.append(path)
+AddPath()
 
-                self.sound_slider.draw()
-                self.sound_output.draw()
-                self.sound_output.setText(self.sound_slider.getValue())
-                Background_volume = self.sound_slider.getValue()
+enemies_timer = 0
+def spawn_enemies(amount):
+    global enemies_timer
+    enemies_timer += 1
+    spawn_interval = 100
+    if enemies_timer % spawn_interval == 0:
+        for i in range(random.randint(0, amount)):
+            path_index = random.randint(0, len(paths) - 1)
+            path = paths[path_index]
+            start_x, start_y = path.path_coordinates[0]
+            ememy = Enemies(start_x * 50, start_y * 50 - (i * random.randint(10, 50)), 10, path.path_coordinates)
+            ememies_list.add(ememy)
 
-                self.sound_effects_slider.draw()
-                self.sound_effects_output.draw()
-                self.sound_effects_output.setText(self.sound_effects_slider.getValue())
-                soundEffect_volume = self.sound_effects_slider.getValue()
+time = 0
+def TransitionMaps():
+    global time, ememies_list, paths
+    time += 1
+    if time % 500 == 0:
+        ememies_list = pygame.sprite.Group()
+        terrain_generator.regenerate_map()
+        paths = []
+        AddPath()
 
-                self.frame_rate_slider.draw()
-                self.frame_rate_output.draw()
-                self.frame_rate_output.setText(self.frame_rate_slider.getValue())
-                frameRate = self.frame_rate_slider.getValue()
-            else:
-                self.sound_output.enable()
-                self.sound_effects_output.enable()
-                self.frame_rate_output.enable()
-
-    def update(self):
-        self.width, self.height = screenWidth, screenHeight
-        self.close_button.x, self.close_button.y = self.x + self.width - 40, self.y
-
-    def handle_event(self, event):
-        global showSettings
-        if self.visible:
-            if self.showSettings:
-                self.close_button.handle_event(event)
-                self.settings.handle_event(event)
-                self.fixBug.handle_event(event)
-                self.saveQuit.handle_event(event)
-            
-            if self.settings.clicked:
-                self.showSettings = True
-                self.showFixBug = False
-                self.showSaveQuit = False
-                self.settings.reset()
-
-            if self.fixBug.clicked:
-                self.showSettings = False
-                self.showFixBug = True
-                self.showSaveQuit = False
-                self.fixBug.reset()
-
-            if self.saveQuit.clicked:
-                self.showSettings = False
-                self.showFixBug = False
-                self.showSaveQuit = True
-                self.saveQuit.reset()
-
-            if self.close_button.clicked:
-                showSettings = False
-                self.visible = False
-                self.close_button.reset()
-        pygame_widgets.update(event)
-menuWindow = MenuWindow(screenHeight, screenWidth, (0, 0))
 # loop
+running = True
 frameRate = 64
 Background_volume = 1.0
 soundEffect_volume = 1.0
-show_grid = False
-can_build = False
-showSettings = False
-showFull_map = True
-running = True
+HomeScreen = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             sys.exit()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                terrain_generator.regenerate_map()
-        elif event.type == pygame.VIDEORESIZE:
-                screenWidth, screenHeight = event.size
-        panel.handle_event(event)
-        # windows events
-        menuWindow.handle_event(event)
-        # map events
-        # terrain_generator.handle_event(event)
     screen.fill(WHITE)
     # map
-    if showFull_map:
-        terrain_generator.draw(screen)
-    # grid
-    if show_grid:
-        grid.draw(screen)
-    # menu buttons
-    if showSettings == False:
-        panel.draw(screen)
-    else:
-        # windows
-        menuWindow.visible = True
-        menuWindow.draw(screen)
+    terrain_generator.draw(screen)
+    for path in paths:
+        path.draw(screen)
+
+    if HomeScreen:
+        TransitionMaps()
+        spawn_enemies(100)
+        ememies_list.draw(screen)
+        for ememie in ememies_list:
+            ememie.move()
+    # windows
+    menuWindow.draw(screen)
     # update
     pygame.display.flip()
     pygame.display.update()
-    clock.tick(frameRate)
+    clock.tick(64)
