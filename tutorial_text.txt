@@ -1,0 +1,19 @@
+Frequency:
+    In the context of Perlin noise, frequency refers to how often the noise function repeats.
+    A higher frequency will result in more "features" or details in the generated noise pattern.
+    Increasing the frequency can create a more complex and detailed appearance.
+
+Amplitude:
+    Amplitude represents the height or strength of the features in the noise pattern.
+    A higher amplitude results in more pronounced peaks and valleys in the generated noise.
+    Adjusting the amplitude can control the overall strength and intensity of the noise.
+
+Octaves:
+    Octaves are used to add multiple layers of Perlin noise to create a more realistic and complex result.
+    Each octave introduces noise at a different frequency and amplitude.
+    Combining multiple octaves allows for the creation of more natural-looking terrain or textures.
+
+Perlin Noise:
+    Perlin noise is a gradient noise function developed by Ken Perlin.
+    It is commonly used to generate realistic-looking random patterns, especially for terrain generation in computer graphics.
+    Perlin noise is characterized by smooth, continuous variations, making it suitable for creating natural and organic-looking textures.
