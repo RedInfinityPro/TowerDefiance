@@ -18,9 +18,11 @@ import PerlinMapGenerator
 pygame.init()
 screenWidth, screenHeight = 700, 700
 screen = pygame.display.set_mode((screenWidth, screenHeight))
-pygame.display.set_caption("Tower Defince")
+pygame.display.set_caption("Odyssey Quest")
 clock = pygame.time.Clock()
 pygame.display.flip()
+icon = pygame.image.load(r'New folder\images\Icon.png')
+pygame.display.set_icon(icon)
 all_sprites_list = pygame.sprite.Group()
 # color
 def RANDOM_COLOR():
@@ -242,6 +244,12 @@ class GroundImage:
             color = item[2]
             pygame.draw.rect(map_surface, color, (cell_x * self.screen_width, cell_y * self.screen_height, self.cell_size, self.cell_size))
         return map_surface
+    
+    def update_size(self, screen_width, screen_height):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.width = screen_width // self.cell_size
+        self.height = screen_height // self.cell_size
 image_ground = GroundImage(screenWidth,screenHeight, 50)
 map_surface = image_ground.generate_map_surface()
 # map menu
@@ -343,30 +351,32 @@ class Map_Menu():
         self.submitButton.draw(screen)
 
     def handle_event(self, event):
-        global show_MainMenu, terrain_generator, show_MapMenu
+        global show_MainMenu, terrain_generator, show_MapMenu, loadedGames
         if self.visible:
             pygame_widgets.update(event)
             button_list = [self.backButton, self.submitButton, self.regenerate_map]
             for button in button_list:
                 button.textColor = GREEN if button.color == button.active_color else WHITE
-            self.seed_textbox.update(events)
-            self.backButton.handle_event(event)
-            if self.backButton.clicked:
-                show_MainMenu = True
-                self.backButton.reset()
-                self.seed_textbox.value = ""
-            self.submitButton.handle_event(event)
-            if self.submitButton.clicked:
-                self.submitButton.reset()
-            self.regenerate_map.handle_event(event)
-            if self.regenerate_map.clicked:
-                terrain_generator.regenerate_map(biome_type = self.pickBiomes.getSelected())
-                self.regenerate_map.reset()
-                time.sleep(0.2)
-            self.submitButton.handle_event(event)
-            if self.submitButton.clicked:
-                show_MapMenu = False
-                self.submitButton.reset()
+            if show_MapMenu:
+                self.seed_textbox.update(events)
+                self.backButton.handle_event(event)
+                if self.backButton.clicked:
+                    show_MainMenu = True
+                    self.backButton.reset()
+                    self.seed_textbox.value = ""
+                self.submitButton.handle_event(event)
+                if self.submitButton.clicked:
+                    self.submitButton.reset()
+                self.regenerate_map.handle_event(event)
+                if self.regenerate_map.clicked:
+                    terrain_generator.regenerate_map(biome_type = self.pickBiomes.getSelected())
+                    self.regenerate_map.reset()
+                    time.sleep(0.2)
+                self.submitButton.handle_event(event)
+                if self.submitButton.clicked:
+                    show_MapMenu = False
+                    self.submitButton.reset()
+                    loadedGames.append_to_file(f'{terrain_generator.seed}',terrain_generator.returnList)
 mapWindow = Map_Menu(screenHeight, screenWidth, (0, 0))
 # start menu
 class Start_Menu():
@@ -432,7 +442,7 @@ class Start_Menu():
     def loadScreen(self):
         self.loadSlots_list = []
         for x in range(5):
-            self.loadSlots = SettingButton(screenWidth / 2 - 147, (100) * x + 170, 300, 100, r"New folder\images\plus.png")
+            self.loadSlots = SettingButton(screenWidth / 2 - 147, (100) * x + 170, 300, 100, r"New folder\images\Main Menu\plus.png")
             self.loadSlots_list.append(self.loadSlots)
     
     def draw(self, screen):
@@ -532,13 +542,17 @@ class Start_Menu():
                         self.backButton.reset()
                 elif self.showLoadScreen:
                     self.backButton.handle_event(event)
-                    for loadSlots in self.loadSlots_list:
-                        loadSlots.handle_event(event)
-                        loadSlots.handle_highlight(event)
                     if self.backButton.clicked:
                         self.showLoadScreen = False
                         self.backButton.reset()
-menuWindow = Start_Menu(screenHeight, screenWidth, (0, 0),r'New folder\images\images.png')
+                    for loadSlots in self.loadSlots_list:
+                        loadSlots.handle_event(event)
+                        loadSlots.handle_highlight(event)
+                        if loadSlots.highlighted:
+                            loadSlots.update_image(r'New folder\images\Main Menu\plus(1).png')
+                        else:
+                            loadSlots.update_image(r'New folder\images\Main Menu\plus.png')
+menuWindow = Start_Menu(screenHeight, screenWidth, (0, 0),r'New folder\images\Main Menu\images.png')
 # path
 class Path:
     def __init__(self, width, height):
@@ -666,6 +680,7 @@ def MenuAnimation():
 # random map
 randomMap_times = 0
 terrain_generator = PerlinMapGenerator.Ground(screenWidth,screenHeight,50)
+loadedGames = PerlinMapGenerator.JsonHandler(r'Saves\SaveGames.json')
 def RendomizeMap():
     global randomMap_times
     if randomMap_times == 0:
@@ -690,11 +705,15 @@ while running:
             if event.key == pygame.K_ESCAPE:
                 show_MainMenu = True
                 show_MapMenu = False
+            if event.key == pygame.K_a:
+                PerlinMapGenerator.JsonHandler.edit_file(f"{terrain_generator.seed}",terrain_generator.returnList)
+                print("Saved")
         if show_MainMenu:
             menuWindow.handle_event(event)
+        if mapWindow:
+            mapWindow.handle_event(event)
         if not(show_MapMenu) and not(show_MainMenu):
             terrain_generator.handle_event(event)
-    mapWindow.handle_event(event)
     screen.fill(WHITE)
     if show_MainMenu:
         randomMap_times = 0
