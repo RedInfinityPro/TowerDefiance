@@ -6,6 +6,7 @@ from pygame.surfarray import make_surface
 from pygame_widgets.slider import Slider
 from pygame_widgets.textbox import TextBox
 # ---------------
+import json
 import random, time, sys
 from perlin_noise import PerlinNoise
 from pathfinding.core.grid import Grid
@@ -21,6 +22,60 @@ BLACK = (0,0,0)
 GRAY = (128,128,128)
 DARK_GRAY = (169,169,169)
 LIME = (0,255,0)
+# json
+class JsonHandler:
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def read_file(self):
+        try:
+            with open(self.file_path, 'r') as file:
+                data = json.load(file)
+            return data
+        except FileNotFoundError:
+            print(f"File '{self.file_path}' not found. Creating a new file.")
+            return {}
+        except json.decoder.JSONDecodeError:
+            print(f"File '{self.file_path}' contains invalid JSON. Returning an empty dictionary.")
+            return {}
+
+    def write_file(self, data):
+        with open(self.file_path, 'w') as file:
+            json.dump(data, file, indent=4)
+
+    def clear_file(self):
+        with open(self.file_path, 'w') as file:
+            file.truncate()
+
+    def edit_file(self, key, new_data):
+        data = self.read_file()
+        if key in data:
+            data[key] = new_data
+            self.write_file(data)
+            print(f"Data for '{key}' edited successfully.")
+        else:
+            print(f"Key '{key}' not found in the file.")
+    
+    def find_data(self, key):
+        data = self.read_file()
+        if key in data:
+            return data[key]
+        else:
+            print(f"Key '{key}' not found in the file.")
+            return None
+        
+    def append_to_file(self, key, value):
+        data = self.read_file()
+        # Check if the file is empty (data is an empty dictionary)
+        if not data:
+            data = {}  # If empty, initialize with an empty dictionary
+        # Append new information to the existing data
+        if key in data:
+            data[key].append(value)
+        else:
+            data[key] = [value]
+        # Write the updated data to the file
+        self.write_file(data)
 # ground Segment
 class Segment:
     def __init__(self, x, y, width, height, active_color, inactive_color):
@@ -66,6 +121,7 @@ class Ground:
         self.pick = random.randint(0,1)
         self.biome_type_list = ['grassland','mountain','desert','snow','forest','swamp']
         self.biome_type = random.choice(self.biome_type_list)
+        self.returnList = []
         self.segmentList = []
         self.ground_data = self.generate_ground()
         self.build()
@@ -98,7 +154,7 @@ class Ground:
             return tuple(max(0, min(255, c + color_variation)) for c in base_color)
         
     def generate_ground(self):
-        returnList = []
+        self.returnList = []
         noise = PerlinNoise(octaves=self.octaves, seed=self.seed)
 
         for i in range(self.width):
@@ -115,7 +171,8 @@ class Ground:
                     else:
                         biome_type = self.biome_type
                     color = self.get_biome_color(biome_type, brightness)
-                    returnList.append([(cell_x, cell_y), cell_height, color])
+                    data_item = [(cell_x, cell_y), cell_height, color]
+                    self.returnList.append(data_item)
                 else:
                     color_value = int(brightness * 255) + random.randint(-10, 10)
                     color_value = max(0, min(255, color_value))
@@ -123,19 +180,9 @@ class Ground:
                         color = (0, 0, color_value)
                     else:
                         color = (color_value, color_value - 50, color_value - 100)
-                    returnList.append([(cell_x, cell_y), cell_height, color])
-        return returnList
-
-    def build(self):
-        for item in self.ground_data:
-            cell_x, cell_y = item[0]
-            cell_height = item[1]
-            color = item[2]
-            segment_width = self.screen_width // self.width
-            segment_height = self.screen_height // self.height
-
-            self.segment = Segment(cell_x * self.screen_width, cell_y * self.screen_height, segment_width, segment_height, LIME, color)
-            self.segmentList.append(self.segment)
+                    data_item = [(cell_x, cell_y), cell_height, color]
+                    self.returnList.append(data_item)
+        return self.returnList
 
     def regenerate_map(self, biome_type = None):
         self.segmentList = []
@@ -147,6 +194,22 @@ class Ground:
             self.biome_type = biome_type
         self.ground_data = self.generate_ground()
         self.build()
+
+    def load_map(self, data):
+        self.segmentList = []
+        self.ground_data = data
+        self.build()
+
+    def build(self):
+        for item in self.ground_data:
+            cell_x, cell_y = item[0]
+            cell_height = item[1]
+            color = item[2]
+            segment_width = self.screen_width // self.width
+            segment_height = self.screen_height // self.height
+
+            self.segment = Segment(cell_x * self.screen_width, cell_y * self.screen_height, segment_width, segment_height, LIME, color)
+            self.segmentList.append(self.segment)
 
     def draw(self,screen):
         for item in self.segmentList:
