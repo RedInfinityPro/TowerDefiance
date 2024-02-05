@@ -160,20 +160,25 @@ class SettingButton:
         self.highlighted = False
 # load slots button
 class LoadSlotButton:
-    def __init__(self, screen, x, y, width, height, color, text, seed_number):
+    def __init__(self, screen, x, y, width, height, color, text, seed_number, hover_color):
         self.screen = screen
         self.rect = pygame.Rect(x, y, width, height)
         self.color = color
+        self.hover_color = hover_color
         self.text = text
         self.seed_number = seed_number
+        self.textColor = BLACK
 
     def draw(self):
-        pygame.draw.rect(self.screen, self.color, self.rect)
+        mouse_pos = pygame.mouse.get_pos()
+        is_hovered = self.rect.collidepoint(mouse_pos)
+        button_color = self.hover_color if is_hovered else self.color
+        pygame.draw.rect(self.screen, button_color, self.rect)
         font = pygame.font.Font(None, 36)
-        text_surface = font.render(self.text, True, (255, 255, 255))
+        text_surface = font.render(self.text, True, self.textColor)
         text_rect = text_surface.get_rect(center=self.rect.center)
         self.screen.blit(text_surface, text_rect)
-
+        
     def is_clicked(self, mouse_pos):
         return self.rect.collidepoint(mouse_pos)
 # map images
@@ -463,7 +468,7 @@ class Start_Menu():
     def loadScreen(self):
         self.loadSlots_list = []
         for x in range(5):
-            self.loadSlots = LoadSlotButton(screenWidth / 2 - 123, (100) * x + 170, 250, 100, r"New folder\images\Main Menu\plus.png")
+            self.loadSlots = LoadSlotButton(screen,screenWidth / 2 - 123, (100) * x + 170,250, 100,BLACK,"Empty",None,WHITE)
             self.loadSlots_list.append(self.loadSlots)
     
     def draw(self, screen):
@@ -511,7 +516,7 @@ class Start_Menu():
             elif (self.showLoadScreen):
                 self.backButton.draw(screen)
                 for loadSlots in self.loadSlots_list:
-                    loadSlots.draw(screen)
+                    loadSlots.draw()
 
     def handle_event(self, event):
         global running, show_MainMenu, show_MapMenu
@@ -567,12 +572,10 @@ class Start_Menu():
                         self.showLoadScreen = False
                         self.backButton.reset()
                     for loadSlots in self.loadSlots_list:
-                        loadSlots.handle_event(event)
-                        loadSlots.handle_highlight(event)
-                        if loadSlots.highlighted:
-                            loadSlots.update_image(r'New folder\images\Main Menu\plus(1).png')
-                        else:
-                            loadSlots.update_image(loadSlots.origional_Image)
+                        mouse_pos = pygame.mouse.get_pos()
+                        loadSlots.is_clicked(mouse_pos)
+                        if loadSlots.is_hovered:
+                            loadSlots.textColor = BLACK
 menuWindow = Start_Menu(screenHeight, screenWidth, (0, 0),r'New folder\images\Main Menu\images.png')
 # path
 class Path:
