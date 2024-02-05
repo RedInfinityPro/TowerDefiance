@@ -14,6 +14,7 @@ from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
 # hand made files
 import PerlinMapGenerator
+import mainMap
 # screen
 pygame.init()
 screenWidth, screenHeight = 700, 700
@@ -35,6 +36,7 @@ BLACK = (0,0,0)
 GRAY = (128,128,128)
 DARK_GRAY = (169,169,169)
 LIME = (0,255,0)
+YELLOW = (255,255,0)
 # text
 class Text:
     def __init__(self, text, font_size, color, position):
@@ -125,6 +127,7 @@ class SettingButton:
         self.y = y
         self.width = width
         self.height = height
+        self.origional_Image = image_path 
         self.image_path = image_path
         self.load_image()
         self.clicked = False
@@ -155,6 +158,24 @@ class SettingButton:
     def reset(self):
         self.clicked = False
         self.highlighted = False
+# load slots button
+class LoadSlotButton:
+    def __init__(self, screen, x, y, width, height, color, text, seed_number):
+        self.screen = screen
+        self.rect = pygame.Rect(x, y, width, height)
+        self.color = color
+        self.text = text
+        self.seed_number = seed_number
+
+    def draw(self):
+        pygame.draw.rect(self.screen, self.color, self.rect)
+        font = pygame.font.Font(None, 36)
+        text_surface = font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        self.screen.blit(text_surface, text_rect)
+
+    def is_clicked(self, mouse_pos):
+        return self.rect.collidepoint(mouse_pos)
 # map images
 class GroundImage:
     def __init__(self, screen_width, screen_height, cell_size):
@@ -442,7 +463,7 @@ class Start_Menu():
     def loadScreen(self):
         self.loadSlots_list = []
         for x in range(5):
-            self.loadSlots = SettingButton(screenWidth / 2 - 147, (100) * x + 170, 300, 100, r"New folder\images\Main Menu\plus.png")
+            self.loadSlots = LoadSlotButton(screenWidth / 2 - 123, (100) * x + 170, 250, 100, r"New folder\images\Main Menu\plus.png")
             self.loadSlots_list.append(self.loadSlots)
     
     def draw(self, screen):
@@ -551,7 +572,7 @@ class Start_Menu():
                         if loadSlots.highlighted:
                             loadSlots.update_image(r'New folder\images\Main Menu\plus(1).png')
                         else:
-                            loadSlots.update_image(r'New folder\images\Main Menu\plus.png')
+                            loadSlots.update_image(loadSlots.origional_Image)
 menuWindow = Start_Menu(screenHeight, screenWidth, (0, 0),r'New folder\images\Main Menu\images.png')
 # path
 class Path:
@@ -695,6 +716,8 @@ soundEffect_volume = 1.0
 show_MainMenu = True
 show_MapMenu = False
 running = True
+showPopUp_window = False
+showPopUp = mainMap.Popup(screen,f"Saved Game on {terrain_generator.seed}",(screenHeight / 2) - 240,0,480,100,RED,YELLOW)
 while running:
     events = pygame.event.get()
     for event in events:
@@ -705,9 +728,12 @@ while running:
             if event.key == pygame.K_ESCAPE:
                 show_MainMenu = True
                 show_MapMenu = False
-            if event.key == pygame.K_a:
-                PerlinMapGenerator.JsonHandler.edit_file(f"{terrain_generator.seed}",terrain_generator.returnList)
-                print("Saved")
+            if event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                if not(show_MapMenu) and not(show_MainMenu) and not(showPopUp_window):
+                    showPopUp.reset()
+                    findOrigionalData = loadedGames.find_data(f"{terrain_generator.seed}")
+                    saveNewInfo = loadedGames.edit_file(f"{terrain_generator.seed}",[terrain_generator.returnList])
+                    showPopUp_window = True
         if show_MainMenu:
             menuWindow.handle_event(event)
         if mapWindow:
@@ -736,7 +762,14 @@ while running:
         terrain_generator.draw(screen)
         if show_MapMenu:
             mapWindow.draw(screen)
-    # update
+        # update
+        if showPopUp_window:
+            image_Path = f'{terrain_generator.seed}.png'
+            pygame.image.save(screen, image_Path)
+            showPopUp.draw()
+            showPopUp_window = not(showPopUp.update())
+            menuWindow.loadSlots_list[0].origional_Image = image_Path
+
     adjust_brightness(screen, brightness)
     pygame.display.flip()
     pygame.display.update()
