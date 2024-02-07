@@ -158,29 +158,6 @@ class SettingButton:
     def reset(self):
         self.clicked = False
         self.highlighted = False
-# load slots button
-class LoadSlotButton:
-    def __init__(self, screen, x, y, width, height, color, text, seed_number, hover_color):
-        self.screen = screen
-        self.rect = pygame.Rect(x, y, width, height)
-        self.color = color
-        self.hover_color = hover_color
-        self.text = text
-        self.seed_number = seed_number
-        self.textColor = BLACK
-
-    def draw(self):
-        mouse_pos = pygame.mouse.get_pos()
-        is_hovered = self.rect.collidepoint(mouse_pos)
-        button_color = self.hover_color if is_hovered else self.color
-        pygame.draw.rect(self.screen, button_color, self.rect)
-        font = pygame.font.Font(None, 36)
-        text_surface = font.render(self.text, True, self.textColor)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        self.screen.blit(text_surface, text_rect)
-        
-    def is_clicked(self, mouse_pos):
-        return self.rect.collidepoint(mouse_pos)
 # map images
 class GroundImage:
     def __init__(self, screen_width, screen_height, cell_size):
@@ -402,7 +379,6 @@ class Map_Menu():
                 if self.submitButton.clicked:
                     show_MapMenu = False
                     self.submitButton.reset()
-                    loadedGames.append_to_file(f'{terrain_generator.seed}',terrain_generator.returnList)
 mapWindow = Map_Menu(screenHeight, screenWidth, (0, 0))
 # start menu
 class Start_Menu():
@@ -468,7 +444,7 @@ class Start_Menu():
     def loadScreen(self):
         self.loadSlots_list = []
         for x in range(5):
-            self.loadSlots = LoadSlotButton(screen,screenWidth / 2 - 123, (100) * x + 170,250, 100,BLACK,"Empty",None,WHITE)
+            self.loadSlots = mainMap.LoadSlotButton(screen,screenWidth / 2 - 123, (100) * x + 170,250, 80,GRAY,"Empty",None,WHITE)
             self.loadSlots_list.append(self.loadSlots)
     
     def draw(self, screen):
@@ -519,7 +495,7 @@ class Start_Menu():
                     loadSlots.draw()
 
     def handle_event(self, event):
-        global running, show_MainMenu, show_MapMenu
+        global running, show_MainMenu, show_MapMenu, loadedGames
         if self.visible:
             pygame_widgets.update(event)
             if not(self.showTutorial or self.showSettings or self.showLoadScreen):
@@ -572,10 +548,14 @@ class Start_Menu():
                         self.showLoadScreen = False
                         self.backButton.reset()
                     for loadSlots in self.loadSlots_list:
-                        mouse_pos = pygame.mouse.get_pos()
-                        loadSlots.is_clicked(mouse_pos)
                         if loadSlots.is_hovered:
+                            mouse_pos = pygame.mouse.get_pos()
+                            if loadSlots.is_clicked(mouse_pos) == True and loadedGames.find_data(loadSlots.text) != None:
+                                loaded_data = loadedGames.read_file()
+                                terrain_generator.from_json(loadedGames.find_data(loadSlots.text))
                             loadSlots.textColor = BLACK
+                        else:
+                            loadSlots.textColor = WHITE
 menuWindow = Start_Menu(screenHeight, screenWidth, (0, 0),r'New folder\images\Main Menu\images.png')
 # path
 class Path:
@@ -721,6 +701,9 @@ show_MapMenu = False
 running = True
 showPopUp_window = False
 showPopUp = mainMap.Popup(screen,f"Saved Game on {terrain_generator.seed}",(screenHeight / 2) - 240,0,480,100,RED,YELLOW)
+HealthBar = mainMap.Bar(0,70,150,50,RED,r"New folder\images\mainMap Images\rectangle.png",r"New folder\images\mainMap Images\heart.png",100,100)
+MoneyBar = mainMap.Bar(200,70,150,50,WHITE,r"New folder\images\mainMap Images\rectangle.png",r"New folder\images\mainMap Images\money-bag.png",100,0)
+Electricity = mainMap.Bar(0,0,150,50,BLUE,r"New folder\images\mainMap Images\rectangle.png",r"New folder\images\mainMap Images\thunder.png",100,100)
 while running:
     events = pygame.event.get()
     for event in events:
@@ -735,7 +718,7 @@ while running:
                 if not(show_MapMenu) and not(show_MainMenu) and not(showPopUp_window):
                     showPopUp.reset()
                     findOrigionalData = loadedGames.find_data(f"{terrain_generator.seed}")
-                    saveNewInfo = loadedGames.edit_file(f"{terrain_generator.seed}",[terrain_generator.returnList])
+                    saveNewInfo = loadedGames.edit_file(f"{terrain_generator.seed}",[terrain_generator.json_data])
                     showPopUp_window = True
         if show_MainMenu:
             menuWindow.handle_event(event)
@@ -763,15 +746,17 @@ while running:
     else:
         RendomizeMap()
         terrain_generator.draw(screen)
+        if not(show_MapMenu):
+            HealthBar.draw(screen)
+            MoneyBar.draw(screen)
+            Electricity.draw(screen)
         if show_MapMenu:
             mapWindow.draw(screen)
         # update
         if showPopUp_window:
-            image_Path = f'{terrain_generator.seed}.png'
-            pygame.image.save(screen, image_Path)
             showPopUp.draw()
             showPopUp_window = not(showPopUp.update())
-            menuWindow.loadSlots_list[0].origional_Image = image_Path
+            menuWindow.loadSlots_list[0].text = f"{terrain_generator.seed}"
 
     adjust_brightness(screen, brightness)
     pygame.display.flip()
