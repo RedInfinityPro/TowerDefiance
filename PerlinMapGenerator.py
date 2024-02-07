@@ -61,7 +61,6 @@ class JsonHandler:
         if key in data:
             return data[key]
         else:
-            print(f"Key '{key}' not found in the file.")
             return None
         
     def append_to_file(self, key, value):
@@ -193,6 +192,38 @@ class Ground:
             self.pick = 1
             self.biome_type = biome_type
         self.ground_data = self.generate_ground()
+        self.build()
+
+    def to_json(self):
+        json_data = {
+            "screen_width": self.screen_width,
+            "screen_height": self.screen_height,
+            "cell_size": self.cell_size,
+            "freq": self.freq,
+            "amp": self.amp,
+            "octaves": self.octaves,
+            "seed": self.seed,
+            "water_threshold": self.water_threshold,
+            "pick": self.pick,
+            "biome_type_list": self.biome_type_list,
+            "biome_type": self.biome_type,
+            "ground_data": self.ground_data
+        }
+        return json_data
+
+    def from_json(self, json_data):
+        self.screen_width = json_data["screen_width"]
+        self.screen_height = json_data["screen_height"]
+        self.cell_size = json_data["cell_size"]
+        self.freq = json_data["freq"]
+        self.amp = json_data["amp"]
+        self.octaves = json_data["octaves"]
+        self.seed = json_data["seed"]
+        self.water_threshold = json_data["water_threshold"]
+        self.pick = json_data["pick"]
+        self.biome_type_list = json_data["biome_type_list"]
+        self.biome_type = json_data["biome_type"]
+        self.ground_data = json_data["ground_data"]
         self.build()
 
     def load_map(self, data):
