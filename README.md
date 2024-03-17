@@ -7,7 +7,7 @@ The pygame module is a versatile tool for creating and manipulating game element
 - [About](#about)
 - [Features](#features)
 - [Imports](#Imports)
-- [Rating: 7/10](#Rating)
+- [Rating: 6.8/10](#Rating)
 
 # About
 
