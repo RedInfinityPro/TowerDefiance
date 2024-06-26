@@ -119,13 +119,52 @@ class MainMenu:
     def wrap_text(self, text, max_chars_per_line):
         return textwrap.wrap(text, width=max_chars_per_line)
     
-    def quitMenu(self):
+    def quit_menu(self):
         self.main_menu.disable()
 
     def Play(self):
         self.play = True
 
+# pause menu
+class PauseMenu:
+    def __init__(self, screen, width, height):
+        self.screen = screen
+        self.width = width
+        self.height = height
+        self.play = True
+        self.restart_game = False
+        self.exit_game_varible = False
+        self.create_main_menu()
+    
+    def create_main_menu(self):
+        self.pause_menu_screen = pygame_menu.Menu('Pause Menu', self.width, self.height, theme=pygame_menu.themes.THEME_DARK)
+        self.options_screen = pygame_menu.Menu('Options', self.width, self.height, theme=pygame_menu.themes.THEME_DARK)
+        self.pause_menu_screen.add.button('Resume', self.resume)
+        self.pause_menu_screen.add.button('Restart', self.restart)
+        self.pause_menu_screen.add.button('Options', self.options)
+        self.pause_menu_screen.add.button('Exit', self.exit_game)
+    
+    def resume(self):
+        self.play = True
+    
+    def restart(self):
+        self.restart_game = True
+        self.play = True
+    
+    def options(self):
+        self.music_volume = self.options_screen.add.range_slider('Music Volume', default=50, range_values=(0, 100), increment=1)
+        self.options_screen.add.range_slider('Sound Effects', default=50, range_values=(0, 100), increment=1)
+        self.options_screen.add.range_slider('Frame Rate', default=60, range_values=(30, 120), increment=1)
+        self.options_screen.add.range_slider('Brightness', default=100, range_values=(0, 100), increment=1)
+        self.options_screen.add.button('Return to Main Menu', pygame_menu.events.BACK)
+        self.pause_menu_screen._open(self.options_screen)
+    
+    def exit_game(self):
+        self.exit_game_varible = True
+        self.play = True
 
+    def quit_menu(self):
+        self.pause_menu_screen.disable()
 # bars
 class Bars:
     def __init__(self, screen, width, height, color, text, image_path):

@@ -35,11 +35,16 @@ colors = {
 def on_resize() -> None:
     window_size = screen.get_size()
     new_w, new_h = window_size[0], window_size[1]
+    # main menu
     menu.main_menu.resize(new_w, new_h)
     menu.loadGame_screen.resize(new_w, new_h)
     menu.settings_screen.resize(new_w, new_h)
+    # pause menu
+    pause_menu.pause_menu_screen.resize(new_w, new_h)
+    pause_menu.options_screen.resize(new_w, new_h)
 
 menu = Menu.MainMenu(screen, screenWidth, screenHeight)
+pause_menu = Menu.PauseMenu(screen, screenWidth, screenHeight)
 on_resize()
 
 # sprites
@@ -95,6 +100,7 @@ def restart():
 
 # main
 restart_game = False
+puase_game = False
 def main():
     global screen, current_health, current_gold, max_health, restart_game
     dragging_button = None
@@ -110,7 +116,8 @@ def main():
                 on_resize()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    menu.play = not(menu.play)
+                    if menu.play:
+                        pause_menu.play = not(pause_menu.play)
             # player button
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 for x, building_type in enumerate(panel.building_type_list):
@@ -135,7 +142,7 @@ def main():
                 if dragging_button:
                     dragging_button.update_position(event.pos)
             # map
-            if menu.play: 
+            if menu.play or pause_menu.play: 
                 ground.handle_event(event) 
             # panel
             panel.handle_event(event)         
@@ -143,8 +150,10 @@ def main():
         if not menu.play:
             menu.main_menu.update(events)
             menu.main_menu.draw(screen)
-        # game
-        if menu.play:
+        elif not pause_menu.play:
+            pause_menu.pause_menu_screen.update(events)
+            pause_menu.pause_menu_screen.draw(screen)
+        else:
             # ground
             ground.draw(screen)
             for path in list_paths:
@@ -195,6 +204,15 @@ def main():
             if current_health <= 0:
                 menu.play = False
                 restart()
+            
+            if pause_menu.restart_game:
+                pause_menu.restart_game = False
+                restart()
+            
+            if pause_menu.exit_game_varible:
+                menu.play = False
+                pause_menu.exit_game_varible = False
+                
         # This is to update the scene
         clock.tick(64)
         pygame.display.flip()
