@@ -48,18 +48,35 @@ class MainMenu:
     
     def tutorial(self):
         self.tutorial_screen.clear()
-        # gmae
+        # Game
         self.tutorial_screen.add.label('Game:')
-        frequency_long_text = (
-            "In the gmae you are persented with 3 diffrent colors: Red, Green, and Blue.",
-            "Each one has a select cost per tower and a sepret cost pre bullet. However,",
-            "For each kill, you will earn $0.01.",
-            "Red Tower: 32.50 - 42.00 | Bullets: 0.10 - 0.45",
-            "Blue Tower: 43.00 - 52.50 | Bullets: 0.46 - 0.81",
-            "Green Tower: 53.00 - 62.50 | Bullets: 0.82 - 1.16"
+        game_long_text = (
+            "Panel: This panel features a selection of three distinct tower options,",
+            "each with varying costs ranging from $32.50 to $62.50. Each tower also",
+            "incurs different bullet costs, ranging from $0.10 to $1.16. Additionally,",
+            "the panel offers three different buildings and a hidden image. The buildings",
+            "are priced between $125.00 and $154.90 each. Upgrading costs $25 per level,",
+            "with production rates set at intervals of 900 units and 1800 units for upgrades.",
+            "The hidden button hide the bars that shows the amount of storage, Gold, Helath",
+            "you have currently."
         )
-        wrapped_frequency_text = self.wrap_text(frequency_long_text, 40)
-        for line in wrapped_frequency_text:
+        wrapped_game_text = self.wrap_text(" ".join(game_long_text), 40)
+        for line in wrapped_game_text:
+            self.tutorial_screen.add.label(line)
+        self.tutorial_screen.add.label('')
+
+        # cost
+        self.tutorial_screen.add.label('Cost:')
+        cost_long_text = (
+            "Red Tower (Cannon): Bullet Cost $0.10 - $0.45, Tower Cost $32.50 - $42.00, Upgrade Cost $25 per level, Bullet Upgrade Cost: current cost * 2.",
+            "Green Tower (MG): Bullet Cost $0.46 - $0.81, Tower Cost $43.00 - $52.50, Upgrade Cost $25 per level, Bullet Upgrade Cost: current cost * 2",
+            "Blue Tower (Missile Launcher): Bullet Cost $0.82 - $1.16, Tower Cost $53.00 - $62.50, Upgrade Cost $25 per level, Bullet Upgrade Cost: current cost * 2",
+            "Factory: Cost: $125.00 - $134.20, Upgrade Cost $25 per level, Production Rate: 900 - 1800",
+            "Mine: Cost $135.20 - $144.40, Upgrade Cost $25 per level, Production Rate: 900 - 1800",
+            "Warehouse: Cost $145.40 - $154.90, Upgrade Cost $25 per level, Production Rate: 900 - 1800"
+        )
+        wrapped_cost_text = self.wrap_text(" ".join(cost_long_text), 40)
+        for line in wrapped_cost_text:
             self.tutorial_screen.add.label(line)
         self.tutorial_screen.add.label('')
 
@@ -118,9 +135,8 @@ class MainMenu:
 
     def wrap_text(self, text, max_chars_per_line):
         return textwrap.wrap(text, width=max_chars_per_line)
-    
-    def quit_menu(self):
-        self.main_menu.disable()
+        def quit_menu(self):
+            self.main_menu.disable()
 
     def Play(self):
         self.play = True
@@ -167,10 +183,11 @@ class PauseMenu:
         self.pause_menu_screen.disable()
 # bars
 class Bars:
-    def __init__(self, screen, width, height, color, text, image_path):
+    def __init__(self, screen, width, y, x, color, text, image_path):
         self.screen = screen
         self.width = width
-        self.height = height
+        self.y = y
+        self.x = x
         self.color = color
         self.text = text
         self.image_path = image_path
@@ -188,16 +205,16 @@ class Bars:
             font = pygame.font.Font(None, max_font_size)
         self.font = font
 
-    def create_menu(self):
-        bar_rect = pygame.Rect(0, self.height - 50, self.width, 50)
+    def create_bar(self):
+        bar_rect = pygame.Rect(self.x, self.y - 50, self.width, 50)
         pygame.draw.rect(self.screen, self.color, bar_rect)
         # Draw the icon
         icon = pygame.image.load(self.image_path)
         icon = pygame.transform.scale(icon, (self.icon_size, self.icon_size))
-        self.screen.blit(icon, (10, self.height - 50 + (50 - self.icon_size) // 2))
+        self.screen.blit(icon, (self.x, self.y - 50 + (50 - self.icon_size) // 2))
         # Render and center the text
         text_surface = self.font.render(self.text, True, self.text_color)
-        text_rect = text_surface.get_rect(center=(self.width // 2 + (self.icon_size / 2), self.height - 25))
+        text_rect = text_surface.get_rect(center=(self.x + self.width // 2 + (self.icon_size / 2), self.y - 25))
         self.screen.blit(text_surface, text_rect)
     
     def update_text(self, new_text):
@@ -213,6 +230,7 @@ class Panel:
         self.color = color
         self.x = 0
         self.show = True
+        self.show_bars = True
         self.expand_button = UI.Button(self.width - 60, 10, 50, 50, "->", (255,0,0), (105,105,105))
         # Define constants
         BUTTON_SIZE = (50, 50)
@@ -241,6 +259,7 @@ class Panel:
 
         self.player_types_list = []
         self.building_type_list = []
+        self.image_buttons_list = []
 
         # Grid settings
         cols = 2
@@ -248,24 +267,33 @@ class Panel:
         start_x = 25
         start_y = 80
 
-        for i, (image, bullet_cost, multiplier, product) in enumerate(button_data):
+        for i, data in enumerate(button_data):
             row = i // cols
             col = i % cols
             x = start_x + col * (BUTTON_SIZE[0] + spacing)
             y = start_y + row * (BUTTON_SIZE[1] + spacing)
-            if i < 8:
-                button = GameSprites.PlayerButton(x, y, *BUTTON_SIZE, f'Assets/PNG/{image}', 50)
-                button.cost_per_bullet = bullet_cost * multiplier
-                self.player_types_list.append(button)
-            else:
-                button = GameSprites.Building(x, y, *BUTTON_SIZE, f'Assets\Icons\{image}', 50, product)
-                self.building_type_list.append(button)
+            if len(data) == 4:
+                image, cost, multiplier, product = data
+                if i < 8:
+                    button = GameSprites.PlayerButton(x, y, *BUTTON_SIZE, f'Assets/PNG/{image}', 50)
+                    button.cost_per_bullet = cost * multiplier
+                    self.player_types_list.append(button)
+                else:
+                    button = GameSprites.Building(x, y, *BUTTON_SIZE, f'Assets\Icons\{image}', 50, product)
+                    self.building_type_list.append(button)
         
+        image_button_text = UI.ImageButton(90, 380, 50, 50, r"Assets/Icons/extra/eye.png")
+        self.image_buttons_list.append(image_button_text)
+
     def create_panel(self):
         if self.show:
             panel_rect = pygame.Rect(0, self.x, self.width, self.height)
             pygame.draw.rect(self.screen, self.color, panel_rect)
-            for button in self.player_types_list + self.building_type_list:
+            for button in self.player_types_list:
+                button.draw(self.screen)
+            for button in self.building_type_list:
+                button.draw(self.screen)
+            for button in self.image_buttons_list:
                 button.draw(self.screen)
         self.expand_button.draw(self.screen)
 
@@ -280,3 +308,10 @@ class Panel:
         else:
             self.expand_button.x = 0
             self.expand_button.text = "->"
+        # image button
+        for image_button in self.image_buttons_list:
+            image_button.handle_event(event, r"Assets\Icons\extra\hidden.png")
+            if image_button.clicked:
+                image_button.update_image("Assets\Icons\extra\hidden.png")
+            self.show_bars = not(image_button.clicked)
+            image_button.reset()

@@ -3,7 +3,7 @@ import random, sys, math, time
 import pygame_menu
 from pygame_menu import themes
 # ---
-import Menu, Map, GameSprites
+import Menu, Map, GameSprites, UI
 
 pygame.init()
 current_time = time.time()
@@ -27,7 +27,9 @@ colors = {
     "GRAY": (128, 128, 128),
     "DARK_GRAY": (169, 169, 169),
     "GRAY": (128,128,128),
-    "GOLD": (255,215,0)
+    "GOLD": (255,215,0),
+    'SADDLE_BROWN': (139,69,19),
+    "YELLOW": (255,255,0)
 }
 
 # menu
@@ -70,30 +72,38 @@ def add_paths(amount):
         list_paths.append(path)
 add_paths(random.randint(1,3))
 
-# player info
-current_goods = 0
-current_health, current_gold = 100, 100
-max_health = 100
 # panel
 BUTTON_SIZE = (cell_size, cell_size)
 panel = Menu.Panel(screen, screenWidth // 4, screenHeight, colors['WHITE'])
+
+# bars
+current_storage, current_gold, current_health = 0, 1000, 100
+max_storage, max_health = 100, 100
+storage_bar = Menu.Bars(screen, 200, 50, screenWidth - 200, colors['SADDLE_BROWN'], f"{current_storage}/{max_storage}", r"Assets\Icons\box.png")
+gold_bar = Menu.Bars(screen, 200, 100, screenWidth - 200, colors['GOLD'], f"${current_gold}", r"Assets\Icons\dollar.png")
+health_bar = Menu.Bars(screen, 200, 150, screenWidth - 200, colors['RED'], f"{current_health}/{max_health}", r"Assets\Icons\heart.png")
 
 # Initialize game variables
 building_clone_list = []
 clones_list = []
 
+# text
+warning_text = "None"
+warning = UI.Text(warning_text, 23, colors['YELLOW'], ((screenWidth // 2) - 125, screenHeight - 23), colors['RED'])
 # restart
 def restart():
     global ground, list_paths, current_health, current_gold, clones_list
-    global spawn_interval, building_clone_list
+    global spawn_interval, building_clone_list, current_storage, max_storage, max_health
 
     GameSprites.enemies_list.empty()
     GameSprites.upgrade_list.empty()
+    GameSprites.product_list.empty()
     ground = Map.Ground(screenWidth, screenWidth, (cell_size, cell_size), colors['GREEN'])
     list_paths = []
     add_paths(random.randint(1,3))
     
-    current_health, current_gold = 100, 100
+    current_storage, current_gold, current_health = 0, 1000, 100
+    max_storage, max_health = 100, 100
     spawn_interval = random.randint(100, 900)
     clones_list = []
     building_clone_list = []
@@ -102,7 +112,7 @@ def restart():
 restart_game = False
 puase_game = False
 def main():
-    global screen, current_health, current_gold, max_health, restart_game
+    global screen, current_health, current_gold, current_storage, restart_game
     dragging_button = None
     running = True
     while running:
@@ -120,19 +130,25 @@ def main():
                         pause_menu.play = not(pause_menu.play)
             # player button
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                for x, building_type in enumerate(panel.building_type_list):
-                    if building_type.is_clicked(event.pos):
-                        new_building = GameSprites.Building(event.pos[0],event.pos[1], BUTTON_SIZE[0], BUTTON_SIZE[1], building_type.image_path, cell_size, building_type.upgrade_image_path)
-                        building_clone_list.append(new_building)
-                        dragging_button = new_building
-                        dragging_button.start_drag()
+                if panel.show:
+                    for x, building_type in enumerate(panel.building_type_list):
+                        if building_type.is_clicked(event.pos):
+                            if current_gold >= building_type.building_cost:
+                                current_gold -= building_type.building_cost
+                                # object
+                                new_building = GameSprites.Building(event.pos[0],event.pos[1], BUTTON_SIZE[0], BUTTON_SIZE[1], building_type.image_path, cell_size, building_type.upgrade_image_path)
+                                building_clone_list.append(new_building)
+                                dragging_button = new_building
+                                dragging_button.start_drag()
 
-                for x, player_type in enumerate(panel.player_types_list):
-                    if player_type.is_clicked(event.pos):
-                        new_button = GameSprites.PlayerButton(event.pos[0],event.pos[1], BUTTON_SIZE[0], BUTTON_SIZE[1], player_type.image_path, cell_size)
-                        clones_list.append(new_button)
-                        dragging_button = new_button
-                        dragging_button.start_drag()
+                    for x, player_type in enumerate(panel.player_types_list):
+                        if player_type.is_clicked(event.pos):
+                            if current_gold >= player_type.tower_cost:
+                                current_gold -= player_type.tower_cost
+                                new_button = GameSprites.PlayerButton(event.pos[0],event.pos[1], BUTTON_SIZE[0], BUTTON_SIZE[1], player_type.image_path, cell_size)
+                                clones_list.append(new_button)
+                                dragging_button = new_button
+                                dragging_button.start_drag()
             # stop dragging
             elif event.type == pygame.MOUSEBUTTONUP:
                 if dragging_button:
@@ -145,7 +161,11 @@ def main():
             if menu.play or pause_menu.play: 
                 ground.handle_event(event) 
             # panel
-            panel.handle_event(event)         
+            panel.handle_event(event)
+            # building
+            for building in panel.building_type_list:
+                if building.placed:
+                    current_storage, current_gold = building.handle_event(event, current_gold, current_storage)
         screen.fill(colors["WHITE"])
         if not menu.play:
             menu.main_menu.update(events)
@@ -167,13 +187,20 @@ def main():
                 current_health = enemie.move(current_health)
             
             panel.create_panel()
-            
+            if panel.show_bars:
+                # bars
+                storage_bar.create_bar()
+                gold_bar.create_bar()
+                health_bar.create_bar()
+                storage_bar.update_text(f"{round(current_storage)}/{round(max_storage)}"), gold_bar.update_text(f"${round(current_gold,2)}"), health_bar.update_text(f"{round(current_health)}/{round(max_health)}")
             # buildings
             for building in building_clone_list:
                 building.draw(screen)
                 building.update()
                 GameSprites.upgrade_list.update()
                 GameSprites.upgrade_list.draw(screen)
+                GameSprites.product_list.update()
+                GameSprites.product_list.draw(screen)
             # clones 
             for button in clones_list:
                 button.draw(screen)
@@ -189,7 +216,7 @@ def main():
                             if enemy.health <= 0:
                                 GameSprites.enemies_list.remove(enemy)
                                 button.bullets.remove(bullet)
-                                current_gold += 0.02
+                                current_gold += 0.05
                                 break
             # circle
             for player in clones_list:
@@ -200,6 +227,21 @@ def main():
                         current_gold = player.shoot(current_gold)
                         break
             
+            # text
+            cost_ranges = {
+                'bullet': [(0.10, 0.45), (0.46, 0.81), (0.82, 1.16)],
+                'tower': [(32.50, 42.00), (43.00, 52.50), (53.00, 62.50)],
+                'building': [(125.00, 134.20), (135.20, 144.4), (145.4, 154.9)]
+            }
+
+            # Check the costs
+            for cost_type, ranges in cost_ranges.items():
+                for cost in ranges:
+                    if current_gold < cost[0] or current_gold < cost[1]:
+                        warning_text = f"!Warning! {cost_type.capitalize()} cost may affect you"
+                        warning.update(warning_text)
+                        warning.render(screen)
+
             # exit
             if current_health <= 0:
                 menu.play = False
@@ -212,7 +254,7 @@ def main():
             if pause_menu.exit_game_varible:
                 menu.play = False
                 pause_menu.exit_game_varible = False
-                
+
         # This is to update the scene
         clock.tick(64)
         pygame.display.flip()

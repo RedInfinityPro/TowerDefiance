@@ -159,7 +159,7 @@ class PlayerButton(pygame.sprite.Sprite):
 
 # building
 upgrade_list = pygame.sprite.Group()
-prioduct_list = pygame.sprite.Group()
+product_list = pygame.sprite.Group()
 class UpgradeIcon(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height, image_path):
         super().__init__()
@@ -177,25 +177,20 @@ class UpgradeIcon(pygame.sprite.Sprite):
 class Building(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height, image_path, grid_size, product_image_path):
         super().__init__()
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.image_path = image_path
-        self.upgrade_cost = 100
-        self.cost_per_product = 0.10
-        self.building_cost = 125.00
         self.image = pygame.image.load(image_path)
         self.image = pygame.transform.scale(self.image, (width, height))
         self.rect = self.image.get_rect(topleft=(x, y))
+        self.image_path = image_path
         self.grid_size = grid_size
         self.dragging = False
         self.placed = False
         self.level = 1
         self.timer = 0
-        self.can_produce = False
+        self.can_upgrade = False
         self.upgrade_icon = None
         self.product_icon = None
+        self.upgrade_cost = 25
+        self.building_cost = 125.00
         self.upgrade_image_path = r"Assets\Icons\up-arrow.png"
         self.product_image_path = product_image_path
 
@@ -204,56 +199,50 @@ class Building(pygame.sprite.Sprite):
 
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
-
+    
     def start_drag(self):
         self.dragging = True
-        self.can_upgrade = True
 
     def stop_drag(self):
         self.dragging = False
         self.placed = True
-        # Snap to grid
+        self.snap_to_grid()
+
+    def snap_to_grid(self):
         self.rect.topleft = (
             round(self.rect.left / self.grid_size) * self.grid_size,
             round(self.rect.top / self.grid_size) * self.grid_size
         )
 
     def update_position(self, pos):
-        if not self.placed:
-            if self.dragging:
-                self.rect.topleft = pos[0] - self.rect.width // 2, pos[1] - self.rect.height // 2
-                # Snap to grid for visual feedback while dragging
-                self.rect.topleft = (
-                    round(self.rect.left / self.grid_size) * self.grid_size,
-                    round(self.rect.top / self.grid_size) * self.grid_size
-                )
-    
+        if not self.placed and self.dragging:
+            self.rect.topleft = pos[0] - self.rect.width // 2, pos[1] - self.rect.height // 2
+            self.snap_to_grid()
+
     def update(self):
         if self.can_upgrade:
             self.timer += 1
-            # produce product
-            if (self.timer % 900) == 0:
+            # Produce product
+            if self.timer % 900 == 0:
                 if not self.product_icon:
                     self.product_icon = UpgradeIcon(self.rect.centerx, self.rect.centery - 50, 25, 25, self.product_image_path)
-                    prioduct_list.add(self.product_icon)
-
-            # upgrade
-            if (self.timer % 1800) == 0:
+                    product_list.add(self.product_icon)
+            # Upgrade
+            if self.timer % 1800 == 0:
                 if not self.upgrade_icon:
                     self.upgrade_icon = UpgradeIcon(self.rect.centerx, self.rect.centery - 50, 25, 25, self.upgrade_image_path)
                     upgrade_list.add(self.upgrade_icon)
-    
+
     def handle_event(self, event, current_gold, current_goods):
-        if self.can_produce:
-            mouse_pos = pygame.mouse.get_pos()
-            if self.rect.collidepoint(mouse_pos):
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        if self.upgrade_icon:
-                            current_gold = self.upgrade(current_gold)
-                        if not self.upgrade_icon:
-                            current_goods = self.upgrade(current_goods)
-        return current_gold
+        if self.can_upgrade:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = pygame.mouse.get_pos()
+                if self.rect.collidepoint(mouse_pos):
+                    if self.upgrade_icon:
+                        current_gold = self.upgrade(current_gold)
+                    if self.product_icon:
+                        current_goods = self.collect_product(current_goods)
+        return current_gold, current_goods 
 
     def upgrade(self, current_gold):
         if self.upgrade_icon:
@@ -261,13 +250,13 @@ class Building(pygame.sprite.Sprite):
             if current_gold >= cost:
                 self.level += 1
                 current_gold -= cost
-                if self.upgrade_icon:
-                    upgrade_list.remove(self.upgrade_icon)
-                    self.upgrade_icon = None
-            return current_gold
-        elif self.product_icon:
-            current_goods = 5
-            if self.product_icon:
                 upgrade_list.remove(self.upgrade_icon)
                 self.upgrade_icon = None
-            return current_goods
+        return current_gold
+
+    def collect_product(self, current_goods):
+        if self.product_icon:
+            current_goods += 5  # Adjust the amount collected as needed
+            product_list.remove(self.product_icon)
+            self.product_icon = None
+        return current_goods
