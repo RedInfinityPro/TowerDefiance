@@ -80,13 +80,15 @@ class Bullet(pygame.sprite.Sprite):
         return self.rect.colliderect(sprite.rect)
 
 # player buttons
-class PlayerButton:
-    def __init__(self, x, y, width, height, image_path):
-        self.rect = pygame.Rect(x, y, width, height)
+class PlayerButton(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, image_path, grid_size):
+        super().__init__()
         self.image_path = image_path
         self.image = pygame.image.load(image_path)
         self.image = pygame.transform.scale(self.image, (width, height))
         self.original_image = self.image
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.grid_size = grid_size
         self.dragging = False
         self.placed = False
         self.angle = 0
@@ -94,28 +96,39 @@ class PlayerButton:
         self.bullets = pygame.sprite.Group()
         self.cost_per_bullet = 0.10
         self.tower_cost = 32.50
-    
+        self.circle_radius = 100
+
     def draw(self, screen):
         if self.dragging or self.placed:
-            pygame.draw.circle(screen, (0,0,0), self.rect.center, 100, 2)
+            pygame.draw.circle(screen, (0, 0, 0), self.rect.center, self.circle_radius, 2)
         screen.blit(self.image, self.rect.topleft)
         self.bullets.draw(screen)
 
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
-    def start_drag(self, ):
+    def start_drag(self):
         self.dragging = True
 
     def stop_drag(self):
         self.dragging = False
         self.placed = True
+        # Snap to grid
+        self.rect.topleft = (
+            round(self.rect.left / self.grid_size) * self.grid_size,
+            round(self.rect.top / self.grid_size) * self.grid_size
+        )
 
     def update_position(self, pos):
         if not self.placed:
             if self.dragging:
                 self.rect.topleft = pos[0] - self.rect.width // 2, pos[1] - self.rect.height // 2
-                
+                # Snap to grid for visual feedback while dragging
+                self.rect.topleft = (
+                    round(self.rect.left / self.grid_size) * self.grid_size,
+                    round(self.rect.top / self.grid_size) * self.grid_size
+                )
+
     def rotate_to_face(self, target_pos, current_gold):
         if self.placed:
             dx = target_pos[0] - self.rect.centerx
@@ -126,16 +139,135 @@ class PlayerButton:
             self.image = pygame.transform.rotate(self.original_image, -self.angle)
             self.rect = self.image.get_rect(center=self.rect.center)
             self.shoot(current_gold)
-    
+
     def shoot(self, current_gold):
-        if self.placed and current_gold >= self.cost_per_bullet:
-            current_gold -= self.cost_per_bullet
-            bullet = Bullet(self.rect.centerx, self.rect.centery, self.angle - 90, self.bullet_image)
-            self.bullets.add(bullet)
+        if self.placed:
+            if current_gold >= self.cost_per_bullet:
+                current_gold -= self.cost_per_bullet
+                bullet = Bullet(self.rect.centerx, self.rect.centery, self.angle - 90, self.bullet_image)
+                self.bullets.add(bullet)
         return current_gold
-    
+
     def update_bullets(self):
         self.bullets.update()
         for bullet in self.bullets:
-            if bullet.time >= 10:
+            if bullet.time >= (self.circle_radius) / 10:
                 self.bullets.remove(bullet)
+    
+    def colliderect(self, sprite):
+        return self.rect.colliderect(sprite.rect)
+
+# building
+upgrade_list = pygame.sprite.Group()
+prioduct_list = pygame.sprite.Group()
+class UpgradeIcon(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, image_path):
+        super().__init__()
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (width, height))
+        self.rect = self.image.get_rect(center=(x, y))
+        self.start_y = y
+        self.direction = 1
+
+    def update(self):
+        self.rect.y += self.direction
+        if self.rect.y >= self.start_y + 10 or self.rect.y <= self.start_y - 10:
+            self.direction *= -1
+        
+class Building(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, image_path, grid_size, product_image_path):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.image_path = image_path
+        self.upgrade_cost = 100
+        self.cost_per_product = 0.10
+        self.building_cost = 125.00
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (width, height))
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.grid_size = grid_size
+        self.dragging = False
+        self.placed = False
+        self.level = 1
+        self.timer = 0
+        self.can_produce = False
+        self.upgrade_icon = None
+        self.product_icon = None
+        self.upgrade_image_path = r"Assets\Icons\up-arrow.png"
+        self.product_image_path = product_image_path
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect.topleft)
+
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+
+    def start_drag(self):
+        self.dragging = True
+        self.can_upgrade = True
+
+    def stop_drag(self):
+        self.dragging = False
+        self.placed = True
+        # Snap to grid
+        self.rect.topleft = (
+            round(self.rect.left / self.grid_size) * self.grid_size,
+            round(self.rect.top / self.grid_size) * self.grid_size
+        )
+
+    def update_position(self, pos):
+        if not self.placed:
+            if self.dragging:
+                self.rect.topleft = pos[0] - self.rect.width // 2, pos[1] - self.rect.height // 2
+                # Snap to grid for visual feedback while dragging
+                self.rect.topleft = (
+                    round(self.rect.left / self.grid_size) * self.grid_size,
+                    round(self.rect.top / self.grid_size) * self.grid_size
+                )
+    
+    def update(self):
+        if self.can_upgrade:
+            self.timer += 1
+            # produce product
+            if (self.timer % 900) == 0:
+                if not self.product_icon:
+                    self.product_icon = UpgradeIcon(self.rect.centerx, self.rect.centery - 50, 25, 25, self.product_image_path)
+                    prioduct_list.add(self.product_icon)
+
+            # upgrade
+            if (self.timer % 1800) == 0:
+                if not self.upgrade_icon:
+                    self.upgrade_icon = UpgradeIcon(self.rect.centerx, self.rect.centery - 50, 25, 25, self.upgrade_image_path)
+                    upgrade_list.add(self.upgrade_icon)
+    
+    def handle_event(self, event, current_gold, current_goods):
+        if self.can_produce:
+            mouse_pos = pygame.mouse.get_pos()
+            if self.rect.collidepoint(mouse_pos):
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        if self.upgrade_icon:
+                            current_gold = self.upgrade(current_gold)
+                        if not self.upgrade_icon:
+                            current_goods = self.upgrade(current_goods)
+        return current_gold
+
+    def upgrade(self, current_gold):
+        if self.upgrade_icon:
+            cost = self.upgrade_cost * self.level
+            if current_gold >= cost:
+                self.level += 1
+                current_gold -= cost
+                if self.upgrade_icon:
+                    upgrade_list.remove(self.upgrade_icon)
+                    self.upgrade_icon = None
+            return current_gold
+        elif self.product_icon:
+            current_goods = 5
+            if self.product_icon:
+                upgrade_list.remove(self.upgrade_icon)
+                self.upgrade_icon = None
+            return current_goods

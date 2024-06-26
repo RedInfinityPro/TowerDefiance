@@ -2,6 +2,9 @@ import pygame
 import pygame_menu
 from pygame_menu import themes
 import textwrap
+import random
+# --
+import GameSprites, UI
 
 # main menu
 class MainMenu:
@@ -122,8 +125,9 @@ class MainMenu:
     def Play(self):
         self.play = True
 
-# on screen menu
-class OnScreenMenu:
+
+# bars
+class Bars:
     def __init__(self, screen, width, height, color, text, image_path):
         self.screen = screen
         self.width = width
@@ -160,3 +164,80 @@ class OnScreenMenu:
     def update_text(self, new_text):
         self.text = new_text
         self.size_font()
+
+# panel
+class Panel:
+    def __init__(self, screen, width, height, color):
+        self.screen = screen
+        self.width = width
+        self.height = height
+        self.color = color
+        self.x = 0
+        self.show = True
+        self.expand_button = UI.Button(self.width - 60, 10, 50, 50, "->", (255,0,0), (105,105,105))
+        # Define constants
+        BUTTON_SIZE = (50, 50)
+        tower_cost_ranges = [(32.50, 42.00), (43.00, 52.50), (53.00, 62.50)]
+        bullet_cost_ranges = [(0.10, 0.45), (0.46, 0.81), (0.82, 1.16)]
+        building_cost = [(125.00, 134.20), (135.20, 144.4), (145.4, 154.9)]
+        # Generate costs
+        tower_costs = [round(random.uniform(*r), 2) for r in tower_cost_ranges]
+        bullet_costs = [round(random.uniform(*r), 2) for r in bullet_cost_ranges]
+        building_costs = [round(random.uniform(*r), 2) for r in building_cost]
+
+        # Create buttons
+        button_data = [
+            ('Cannon.png', bullet_costs[0], 1, None),
+            ('Cannon2.png', bullet_costs[0], 2, None),
+            ('MG.png', bullet_costs[1], 1, None),
+            ('MG2.png', bullet_costs[1], 2, None),
+            ('MG3.png', bullet_costs[1], 4, None),
+            ('Missile_Launcher.png', bullet_costs[2], 1, None),
+            ('Missile_Launcher2.png', bullet_costs[2], 2, None),
+            ('Missile_Launcher3.png', bullet_costs[2], 4, None),
+            ('factory.png', building_costs[0], 1, r"Assets\PNG\Bullet_Cannon.png"),
+            ('mine.png', building_costs[1], 1, r"Assets\Icons\dollar.png"),
+            ('warehouse.png', building_costs[2], 1, r"Assets\Icons\box.png")
+        ]
+
+        self.player_types_list = []
+        self.building_type_list = []
+
+        # Grid settings
+        cols = 2
+        spacing = 10
+        start_x = 25
+        start_y = 80
+
+        for i, (image, bullet_cost, multiplier, product) in enumerate(button_data):
+            row = i // cols
+            col = i % cols
+            x = start_x + col * (BUTTON_SIZE[0] + spacing)
+            y = start_y + row * (BUTTON_SIZE[1] + spacing)
+            if i < 8:
+                button = GameSprites.PlayerButton(x, y, *BUTTON_SIZE, f'Assets/PNG/{image}', 50)
+                button.cost_per_bullet = bullet_cost * multiplier
+                self.player_types_list.append(button)
+            else:
+                button = GameSprites.Building(x, y, *BUTTON_SIZE, f'Assets\Icons\{image}', 50, product)
+                self.building_type_list.append(button)
+        
+    def create_panel(self):
+        if self.show:
+            panel_rect = pygame.Rect(0, self.x, self.width, self.height)
+            pygame.draw.rect(self.screen, self.color, panel_rect)
+            for button in self.player_types_list + self.building_type_list:
+                button.draw(self.screen)
+        self.expand_button.draw(self.screen)
+
+    def handle_event(self, event):
+        self.expand_button.handle_event(event)
+        if self.expand_button.clicked:
+            self.show = not(self.show)
+            self.expand_button.reset()
+        if self.show:
+            self.expand_button.x = self.width - 60
+            self.expand_button.text = "<-"
+        else:
+            self.expand_button.x = 0
+            self.expand_button.text = "->"
