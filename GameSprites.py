@@ -1,7 +1,7 @@
 import pygame
 import pygame.sprite
 import random, sys, math, time
-
+import UI
 # enemies
 enemies_list = pygame.sprite.Group()
 class Enemies(pygame.sprite.Sprite):
@@ -24,7 +24,7 @@ class Enemies(pygame.sprite.Sprite):
         normalized_value = ((value - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
         return normalized_value
     
-    def scale_random_number(self, num, old_min=1, old_max=100, new_min=1.1, new_max=1.9):
+    def scale_random_number(self, num, old_min=1, old_max=100, new_min=1.1, new_max=2.9):
         # Scale the number from the old range to the new range
         scaled_value = ((num - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min
         return scaled_value
@@ -97,8 +97,11 @@ class PlayerButton(pygame.sprite.Sprite):
         self.cost_per_bullet = 0.10
         self.tower_cost = 32.50
         self.circle_radius = 100
+        self.screen = None
+        self.tool_tip = UI.Text(f"Tower ${self.tower_cost}, Bullet ${self.cost_per_bullet}", 23, (255, 255, 255), (self.rect.x, self.rect.y), (0, 0, 0))
 
     def draw(self, screen):
+        self.screen = screen
         if self.dragging or self.placed:
             pygame.draw.circle(screen, (0, 0, 0), self.rect.center, self.circle_radius, 2)
         screen.blit(self.image, self.rect.topleft)
@@ -157,6 +160,14 @@ class PlayerButton(pygame.sprite.Sprite):
     def colliderect(self, sprite):
         return self.rect.colliderect(sprite.rect)
 
+    def handle_highlight(self):
+        mouse_pos = pygame.mouse.get_pos()
+        self.highlighted = self.rect.collidepoint(mouse_pos)
+        # f"Upgrade_cost ${self.upgrade_cost}, {self.building_cost}"
+        if self.highlighted:
+            self.tool_tip.update(f"Tower ${self.tower_cost}, Bullet ${self.cost_per_bullet}")
+            self.tool_tip.render(self.screen)
+
 # building
 upgrade_list = pygame.sprite.Group()
 product_list = pygame.sprite.Group()
@@ -193,8 +204,11 @@ class Building(pygame.sprite.Sprite):
         self.building_cost = 125.00
         self.upgrade_image_path = r"Assets\Icons\up-arrow.png"
         self.product_image_path = product_image_path
+        self.screen = None
+        self.tool_tip = UI.Text(f"Upgrade ${self.upgrade_cost}, Building ${self.building_cost}", 23, (255, 255, 255), (self.rect.x, self.rect.y), (0, 0, 0))
 
     def draw(self, screen):
+        self.screen = screen
         screen.blit(self.image, self.rect.topleft)
 
     def is_clicked(self, pos):
@@ -242,7 +256,15 @@ class Building(pygame.sprite.Sprite):
                         current_gold = self.upgrade(current_gold)
                     if self.product_icon:
                         current_goods = self.collect_product(current_goods)
-        return current_gold, current_goods 
+        return current_gold, current_goods
+
+    def handle_highlight(self):
+        mouse_pos = pygame.mouse.get_pos()
+        self.highlighted = self.rect.collidepoint(mouse_pos)
+        # f"Upgrade_cost ${self.upgrade_cost}, {self.building_cost}"
+        if self.highlighted:
+            self.tool_tip.update(f"Upgrade ${self.upgrade_cost}, Building ${self.building_cost}")
+            self.tool_tip.render(self.screen)
 
     def upgrade(self, current_gold):
         if self.upgrade_icon:

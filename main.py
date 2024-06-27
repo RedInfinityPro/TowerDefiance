@@ -41,6 +41,7 @@ def on_resize() -> None:
     menu.main_menu.resize(new_w, new_h)
     menu.loadGame_screen.resize(new_w, new_h)
     menu.settings_screen.resize(new_w, new_h)
+    menu.credits_screen.resize(new_w, new_h)
     # pause menu
     pause_menu.pause_menu_screen.resize(new_w, new_h)
     pause_menu.options_screen.resize(new_w, new_h)
@@ -52,6 +53,7 @@ on_resize()
 # sprites
 enemies_timer = 0
 spawn_interval = random.randint(100, 900)
+spawn_amount = random.randint(100, 900)
 def spawn_enemies(amount):
     global enemies_timer, spawn_interval
     enemies_timer += 1
@@ -110,9 +112,8 @@ def restart():
 
 # main
 restart_game = False
-puase_game = False
 def main():
-    global screen, current_health, current_gold, current_storage, restart_game
+    global screen, current_health, current_gold, current_storage, restart_game, spawn_interval, spawn_amount
     dragging_button = None
     running = True
     while running:
@@ -128,6 +129,12 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     if menu.play:
                         pause_menu.play = not(pause_menu.play)
+                if event.key == pygame.K_p:
+                    if menu.play and pause_menu.play:
+                        panel.show = not(panel.show)
+                if event.key == pygame.K_e:
+                    if menu.play and pause_menu.play:
+                        panel.show_bars = not(panel.show_bars)
             # player button
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if panel.show:
@@ -180,7 +187,7 @@ def main():
                 path.draw(screen)
 
             # enemies
-            spawn_enemies(100)
+            spawn_enemies(spawn_interval)
             GameSprites.enemies_list.update()
             GameSprites.enemies_list.draw(screen)
             for enemie in GameSprites.enemies_list:
@@ -193,6 +200,12 @@ def main():
                 gold_bar.create_bar()
                 health_bar.create_bar()
                 storage_bar.update_text(f"{round(current_storage)}/{round(max_storage)}"), gold_bar.update_text(f"${round(current_gold,2)}"), health_bar.update_text(f"{round(current_health)}/{round(max_health)}")
+            
+            if panel.pause:
+                pause_menu.play = False
+                panel.image_buttons_list[1].clicked = False
+                panel.pause = False
+
             # buildings
             for building in building_clone_list:
                 building.draw(screen)
@@ -229,9 +242,9 @@ def main():
             
             # text
             cost_ranges = {
-                'bullet': [(0.10, 0.45), (0.46, 0.81), (0.82, 1.16)],
+                'bullet': [(0.10, 0.45), (0.50, 0.85), (0.90, 1.30)],
                 'tower': [(32.50, 42.00), (43.00, 52.50), (53.00, 62.50)],
-                'building': [(125.00, 134.20), (135.20, 144.4), (145.4, 154.9)]
+                'building': [(125.00, 134.20), (135.20, 144.40), (145.40, 154.90)]
             }
 
             # Check the costs
@@ -241,12 +254,22 @@ def main():
                         warning_text = f"!Warning! {cost_type.capitalize()} cost may affect you"
                         warning.update(warning_text)
                         warning.render(screen)
+            # buildings
+            for building in panel.building_type_list:
+                building.handle_highlight()
+            
+            for player in panel.player_types_list:
+                player.handle_highlight()
+
+            # change rate
+            if len(GameSprites.enemies_list) == 0:
+                spawn_amount = random.randint(100, 900)
 
             # exit
             if current_health <= 0:
                 menu.play = False
                 restart()
-            
+
             if pause_menu.restart_game:
                 pause_menu.restart_game = False
                 restart()
