@@ -8,10 +8,10 @@ import Menu, Map, GameSprites, UI
 pygame.init()
 current_time = time.time()
 random.seed(current_time)
-# Seting up the display
+# Setting up the display
 screenWidth, screenHeight = 700, 700
 screen = pygame.display.set_mode((screenWidth, screenHeight), pygame.RESIZABLE)
-pygame.display.set_caption("Tower Defince")
+pygame.display.set_caption("Tower Defiance")
 clock = pygame.time.Clock()
 cell_size = 50
 
@@ -103,7 +103,7 @@ def restart():
     ground = Map.Ground(screenWidth, screenWidth, (cell_size, cell_size), colors['GREEN'])
     list_paths = []
     add_paths(random.randint(1,3))
-    
+
     current_storage, current_gold, current_health = 0, 1000, 100
     max_storage, max_health = 100, 100
     spawn_interval = random.randint(100, 900)
@@ -165,8 +165,8 @@ def main():
                 if dragging_button:
                     dragging_button.update_position(event.pos)
             # map
-            if menu.play or pause_menu.play: 
-                ground.handle_event(event) 
+            if menu.play or pause_menu.play:
+                ground.handle_event(event)
             # panel
             panel.handle_event(event)
             # building
@@ -192,7 +192,7 @@ def main():
             GameSprites.enemies_list.draw(screen)
             for enemie in GameSprites.enemies_list:
                 current_health = enemie.move(current_health)
-            
+
             panel.create_panel()
             if panel.show_bars:
                 # bars
@@ -200,7 +200,7 @@ def main():
                 gold_bar.create_bar()
                 health_bar.create_bar()
                 storage_bar.update_text(f"{round(current_storage)}/{round(max_storage)}"), gold_bar.update_text(f"${round(current_gold,2)}"), health_bar.update_text(f"{round(current_health)}/{round(max_health)}")
-            
+
             if panel.pause:
                 pause_menu.play = False
                 panel.image_buttons_list[1].clicked = False
@@ -214,7 +214,7 @@ def main():
                 GameSprites.upgrade_list.draw(screen)
                 GameSprites.product_list.update()
                 GameSprites.product_list.draw(screen)
-            # clones 
+            # clones
             for button in clones_list:
                 button.draw(screen)
                 button.update_bullets()
@@ -239,7 +239,7 @@ def main():
                         player.rotate_to_face(sprite.rect.center, current_gold)
                         current_gold = player.shoot(current_gold)
                         break
-            
+
             # text
             cost_ranges = {
                 'bullet': [(0.10, 0.45), (0.50, 0.85), (0.90, 1.30)],
@@ -257,7 +257,7 @@ def main():
             # buildings
             for building in panel.building_type_list:
                 building.handle_highlight()
-            
+
             for player in panel.player_types_list:
                 player.handle_highlight()
 
@@ -273,7 +273,7 @@ def main():
             if pause_menu.restart_game:
                 pause_menu.restart_game = False
                 restart()
-            
+
             if pause_menu.exit_game_varible:
                 menu.play = False
                 pause_menu.exit_game_varible = False
