@@ -2,7 +2,7 @@ import pygame
 import random, sys, math, time
 import pygame_menu
 from pygame_menu import themes
-# ---
+# -- handmade
 import Menu, Map, GameSprites, UI
 
 pygame.init()

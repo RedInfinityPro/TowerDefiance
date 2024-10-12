@@ -3,7 +3,7 @@ import pygame_menu
 from pygame_menu import themes
 import textwrap
 import random
-# --
+# -- handmade
 import GameSprites, UI
 
 # main menu

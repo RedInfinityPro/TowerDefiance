@@ -1,6 +1,7 @@
 import pygame
 import pygame.sprite
 import random, sys, math, time
+# -- handmade
 import UI
 # enemies
 enemies_list = pygame.sprite.Group()
