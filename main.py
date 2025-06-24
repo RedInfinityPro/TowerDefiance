@@ -3,6 +3,7 @@ from MainMenu.menuFile import *
 from MainMenu.pauseFile import *
 from Information_Display.details import *
 from Map.map import *
+from Map.weather import *
 
 def on_resize(screen: pygame.Surface, main_menu: Any, pause_menu: Any) -> None:
     window_size = screen.get_size()
@@ -65,27 +66,28 @@ class Application:
             # handle event 
             if self.main_menu.play and self.pause_menu.resume_game:
                 self.ui_manager.process_events(event)
-                self.ground.handle_event(event)
+                self.ground.handle_event(event=event)
             # menu
             if not self.main_menu.play or self.pause_menu.exit_to_main:
                 self.main_menu.play = False
                 self.pause_menu._reset_flags()
-                self.main_menu.main_menu.update(events)
-                self.main_menu.main_menu.draw(self.screen)
+                self.main_menu.main_menu.update(events=events)
+                self.main_menu.main_menu.draw(surface=self.screen)
             elif self.main_menu.play and not self.pause_menu.resume_game:
-                self.pause_menu.pause_menu.update(events)
-                self.pause_menu.pause_menu.draw(self.screen)
+                self.pause_menu.pause_menu.update(events=events)
+                self.pause_menu.pause_menu.draw(surface=self.screen)
             # play
             if self.main_menu.play and self.pause_menu.resume_game:
                 self.screen.blit(self.background_surface, (0, 0))
                 MoveCamera(cameraPos=self.cameraPos, speed=self.cameraSpeed)
                 self.ground.draw(screen=self.screen)
                 self.ground.move_camera(dx=self.cameraPos[0], dy=self.cameraPos[1])
-                self.weather.draw(screen=self.screen)
+                self.weather.draw(screen=self.screen, dt=time_delta)
                 self.ui_manager.draw_ui(self.screen)
                 # updates
-                self.details_panel.update(screen=self.screen)
-                self.weather.update(elapsed_time=self.details_panel.elapsed_time)
+                self.details_panel.update(screen=self.screen, dt=time_delta)
+                self.weather.set_pause_state(paused=self.details_panel.pause)
+                self.weather.update(elapsed_time=self.details_panel.elapsed_time, dt=time_delta)
             self.ui_manager.update(time_delta)
             self.clock.tick(64)
             pygame.display.flip()

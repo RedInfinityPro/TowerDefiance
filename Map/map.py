@@ -1,76 +1,5 @@
 from Container.imports_library import *
 
-# weather
-class Weather:
-    def __init__(self):
-        self.time = 0  # Represents in-game time (0-24 hours)
-        self.day_length = 60  # Seconds for a full day
-        self.weather_types = ["clear", "overcast", "snowstorm", "fog", "rain", "snow"]
-        self.current_weather = random.choice(self.weather_types)
-        self.weather_timer = time.time() + random.randint(10, 30)  # Next weather change
-        self.update_weather_values()
-
-    def update_weather_values(self):
-        base_temp = 75
-        variation = 1.5
-        self.current_temperature = round(random.uniform(base_temp - variation, base_temp + variation), 2)
-        # Wind speeds
-        self.wind_speed = round(random.uniform(5, 30), 2)
-        self.wind_direction = random.choice(["North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West"])
-        # Special effects for different weather types
-        if self.current_weather == "rain":
-            self.visibility = round(random.uniform(5, 20), 1)
-        elif self.current_weather == "snow":
-            self.visibility = round(random.uniform(2, 10), 1)
-        elif self.current_weather == "snowstorm":
-            self.visibility = round(random.uniform(1, 5), 1)
-        elif self.current_weather == "fog":
-            self.visibility = round(random.uniform(3, 8), 1)
-        else:
-            self.precipitation_type = "none"
-            self.visibility = round(random.uniform(20, 100), 1)
-
-    def _get_lighting(self):
-        if 6 <= self.time < 18:  # Daytime
-            return (255, 255, 255, 50)  # Light overlay
-        elif 18 <= self.time < 21 or 3 <= self.time < 6:  # Dawn/Dusk
-            return (50, 50, 100, 100)  # Dark blue tint
-        else:  # Night
-            return (0, 0, 25, 150)  # Dark overlay
-
-    def draw(self, screen: pygame.Surface):
-        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-        overlay.fill(self._get_lighting())  # Apply lighting
-        screen.blit(overlay, (0, 0))
-
-        if self.current_weather == "snowstorm":
-            for _ in range(100):
-                x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
-                pygame.draw.circle(screen, (220, 240, 255), (x, y), random.uniform(0.1, 0.3))
-        elif self.current_weather == "rain":
-            for _ in range(80):
-                x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
-                pygame.draw.line(screen, (100, 150, 220), (x, y), (x + random.uniform(-2, 2), y + 10), 2)
-        elif self.current_weather == "snow":
-            for _ in range(70):
-                x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
-                pygame.draw.circle(screen, (200, 225, 255), (x, y), random.uniform(0.2, 0.4))
-        elif self.current_weather == "fog":
-            fog_overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-            fog_overlay.fill((180, 180, 220, 120))
-            screen.blit(fog_overlay, (0, 0))
-            # Add swirling fog particles
-            for _ in range(30):
-                x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
-                pygame.draw.circle(screen, (200, 200, 240, 60), (x, y), random.uniform(0.10, 0.30))
-
-    def update(self, elapsed_time: float):
-        self.time = elapsed_time or (time.time() % self.day_length) / self.day_length * 24
-        if self.time > self.weather_timer:
-            self.current_weather = random.choice(self.weather_types)
-            self.update_weather_values()  # Refresh weather data
-            self.weather_timer = self.time + random.randint(15, 45)
-    
 class Segment:
     def __init__(self, position: Tuple[float, float], scale: Tuple[float, float], biome_type: str, active_color: pygame.Color, inactive_color: pygame.Color):
         self.x, self.y = position
@@ -79,7 +8,6 @@ class Segment:
         self.active_color = active_color
         self.inactive_color = inactive_color
         self.color = self.inactive_color
-        self.original_color = self.color
         self.clicked = False
 
     def draw(self, screen: pygame.Surface, camera_offset: Tuple[float, float]):
@@ -91,7 +19,12 @@ class Segment:
         adjusted_mouse_x = mouse_pos[0] + camera_offset[0]
         adjusted_mouse_y = mouse_pos[1] + camera_offset[1]
         in_bounds = self.x < adjusted_mouse_x < self.x + self.width and self.y < adjusted_mouse_y < self.y + self.height
-        self.color = self.active_color if in_bounds else self.inactive_color
+        #Hovered
+        if in_bounds:
+            self.color = self.active_color 
+        else:
+            self.color = self.inactive_color
+
         if in_bounds and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self.clicked = True
 

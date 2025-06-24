@@ -57,7 +57,7 @@ class Details_Panel:
         else:
             self.speed_num = 1
 
-    def update(self, screen: pygame.display):
+    def update(self, screen: pygame.display, dt: float):
         screenScale = screen.get_size()
         self.details_panel.set_dimensions((screenScale[0] - 20, 85))
         self.resource_panel.set_dimensions((screenScale[0] - 250, 85))
@@ -66,7 +66,7 @@ class Details_Panel:
         delta = current_time - self.last_update_time
         self.last_update_time = current_time
         if not self.pause:
-            self.elapsed_time += delta * (self.speed_num)
+            self.elapsed_time += delta * self.speed_num * 2
             if self.elapsed_time >= self.day_length:
                 self.elapsed_time = 0
                 self.day += 1
