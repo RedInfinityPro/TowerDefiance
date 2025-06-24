@@ -59,10 +59,12 @@ class Details_Panel:
 
     def update(self, screen: pygame.display):
         screenScale = screen.get_size()
+        self.details_panel.set_dimensions((screenScale[0] - 20, 85))
+        self.resource_panel.set_dimensions((screenScale[0] - 250, 85))
+        # time
         current_time = time.time()
         delta = current_time - self.last_update_time
         self.last_update_time = current_time
-        # time
         if not self.pause:
             self.elapsed_time += delta * (self.speed_num)
             if self.elapsed_time >= self.day_length:
@@ -74,10 +76,11 @@ class Details_Panel:
                     if self.month > 11:
                         self.month = 0
                         self.year += 1
-                        
-        self.details_panel.set_dimensions((screenScale[0] - 20, 85))
-        self.resource_panel.set_dimensions((screenScale[0] - 250, 85))
+        # format
         self.formatMoney = Format_Number(self.money)
         self.money_button.set_text(f"${self.formatMoney}")
         self.speed_button.set_text("Speed {speed}".format(speed=self.speed_num))
         self.date_label.set_text("{Month}: {Day}/{Year}".format(Month=self.month_list[self.month], Day=self.day, Year=self.year))
+
+        if self.pause:
+            pygame.draw.rect(screen, pygame.Color('red'), pygame.Rect(0, 0, screen.get_size()[0], screen.get_size()[1]), 4)

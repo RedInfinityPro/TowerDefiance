@@ -30,7 +30,7 @@ class Weather:
             self.precipitation_type = "none"
             self.visibility = round(random.uniform(20, 100), 1)
 
-    def get_lighting(self):
+    def _get_lighting(self):
         if 6 <= self.time < 18:  # Daytime
             return (255, 255, 255, 50)  # Light overlay
         elif 18 <= self.time < 21 or 3 <= self.time < 6:  # Dawn/Dusk
@@ -38,9 +38,9 @@ class Weather:
         else:  # Night
             return (0, 0, 25, 150)  # Dark overlay
 
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface):
         overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-        overlay.fill(self.get_lighting())  # Apply lighting
+        overlay.fill(self._get_lighting())  # Apply lighting
         screen.blit(overlay, (0, 0))
 
         if self.current_weather == "snowstorm":
@@ -64,7 +64,7 @@ class Weather:
                 x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
                 pygame.draw.circle(screen, (200, 200, 240, 60), (x, y), random.uniform(0.10, 0.30))
 
-    def update(self, elapsed_time):
+    def update(self, elapsed_time: float):
         self.time = elapsed_time or (time.time() % self.day_length) / self.day_length * 24
         if self.time > self.weather_timer:
             self.current_weather = random.choice(self.weather_types)
@@ -72,7 +72,7 @@ class Weather:
             self.weather_timer = self.time + random.randint(15, 45)
     
 class Segment:
-    def __init__(self, position, scale, biome_type, active_color, inactive_color):
+    def __init__(self, position: Tuple[float, float], scale: Tuple[float, float], biome_type: str, active_color: pygame.Color, inactive_color: pygame.Color):
         self.x, self.y = position
         self.width, self.height = scale
         self.biome_type = biome_type
@@ -82,11 +82,11 @@ class Segment:
         self.original_color = self.color
         self.clicked = False
 
-    def draw(self, screen, camera_offset):
+    def draw(self, screen: pygame.Surface, camera_offset: Tuple[float, float]):
         screen_x, screen_y = self.x - camera_offset[0], self.y - camera_offset[1]
         pygame.draw.rect(screen, self.color, (screen_x, screen_y, self.width, self.height))
 
-    def handle_event(self, event, camera_offset):
+    def handle_event(self, event: Any, camera_offset: Tuple[float, float]):
         mouse_pos = pygame.mouse.get_pos()
         adjusted_mouse_x = mouse_pos[0] + camera_offset[0]
         adjusted_mouse_y = mouse_pos[1] + camera_offset[1]
@@ -96,11 +96,11 @@ class Segment:
             self.clicked = True
 
 class Ground:
-    def __init__(self, screen_size, cell_size, active_color):
+    def __init__(self, screen_size: pygame.Surface, cell_size: Tuple[float, float], active_color: pygame.Color):
         self.screen_width, self.screen_height = screen_size
         self.cell_size = cell_size
         self.active_color = active_color
-        self.chunk_size = 16
+        self.chunk_size = 32
         self.camera_x = 0
         self.camera_y = 0
         self.chunks = {}
@@ -135,7 +135,7 @@ class Ground:
         self.moderate_humidity = 0.2
         self.wet_humidity = 0.5
 
-    def get_chunk_key(self, x, y): 
+    def _get_chunk_key(self, x: float, y: float): 
         return f"{x}:{y}"
 
     def update_visible_chunks(self):
@@ -148,12 +148,12 @@ class Ground:
         self.visible_chunks.clear()
         for cx in range(int(start_x), int(end_x)+1):
             for cy in range(int(start_y), int(end_y)+1):
-                key = self.get_chunk_key(cx, cy)
+                key = self._get_chunk_key(cx, cy)
                 if key not in self.chunks:
-                    self.chunks[key] = self.generate_chunk(cx, cy)
+                    self.chunks[key] = self._generate_chunk(cx, cy)
                 self.visible_chunks[key] = self.chunks[key]
 
-    def generate_chunk(self, cx, cy):
+    def _generate_chunk(self, cx: float, cy: float):
         chunk_segments = []
         chunk_start_x = cx * self.chunk_size * self.cell_size[0]
         chunk_start_y = cy * self.chunk_size * self.cell_size[1]
@@ -162,18 +162,18 @@ class Ground:
                 px = chunk_start_x + x * self.cell_size[0]
                 py = chunk_start_y + y * self.cell_size[1]
                 # Get terrain data for this position
-                terrain_data = self.get_terrain_data(px, py)
+                terrain_data = self._get_terrain_data(px, py)
                 # Determine biome based on comprehensive terrain analysis
-                biome = self.determine_biome_comprehensive(terrain_data, px, py)
+                biome = self._determine_biome_comprehensive(terrain_data, px, py)
                 # Calculate brightness based on elevation and biome
-                brightness = self.calculate_brightness(terrain_data, biome)
+                brightness = self._calculate_brightness(terrain_data, biome)
                 # Get biome color with coherent shading
-                color = self.get_biome_color(biome, brightness, terrain_data)
+                color = self._get_biome_color(biome, brightness, terrain_data)
                 segment = Segment((px, py), self.cell_size, biome, self.active_color, color)
                 chunk_segments.append(segment)
         return chunk_segments
 
-    def get_terrain_data(self, x, y):
+    def _get_terrain_data(self, x: float, y: float):
         # Normalize coordinates for different scales
         continent_coords = [x / self.continent_scale, y / self.continent_scale]
         elevation_coords = [x / self.elevation_scale, y / self.elevation_scale]
@@ -214,7 +214,7 @@ class Ground:
             'is_land': continent_shape > self.continental_threshold
         }
 
-    def determine_biome_comprehensive(self, terrain_data, x, y):
+    def _determine_biome_comprehensive(self, terrain_data: Any, x: float, y: float):
         """Determine biome using comprehensive terrain analysis"""
         elevation = terrain_data['elevation']
         temperature = terrain_data['temperature']
@@ -229,7 +229,7 @@ class Ground:
             else:
                 return 'shallow_water'
         # Check for freshwater features on land
-        water_biome = self.check_freshwater_features(x, y, elevation, humidity)
+        water_biome = self._check_freshwater_features(x, y, elevation, humidity)
         if water_biome:
             return water_biome
         # Land biomes based on temperature and humidity
@@ -287,21 +287,21 @@ class Ground:
             else:
                 return 'hot_desert'
 
-    def check_freshwater_features(self, x, y, elevation, humidity):
+    def _check_freshwater_features(self, x: float, y: float, elevation: float, humidity: float):
         """Check for lakes and rivers"""
         # Lakes in depressions with sufficient humidity
         if elevation < 0.15 and humidity > self.lake_threshold:
             return 'lake'
         # Rivers using improved flow-based generation
         river_value = self.river_noise([x / (self.elevation_scale * 2), y / (self.elevation_scale * 2)])
-        if abs(river_value % 1.0) < self.river_density and self.is_river_path(x, y, river_value):
+        if abs(river_value % 1.0) < self.river_density and self._is_river_path(x, y, river_value):
             return 'river'
         # Wetlands in low-lying humid areas
         if elevation < 0.1 and humidity > 0.4:
             return 'wetlands'
         return None
 
-    def is_river_path(self, x, y, river_value):
+    def _is_river_path(self, x: float, y: float, river_value: float):
         """Enhanced river path detection"""
         scale = self.elevation_scale * 2
         dx = self.river_noise([x / scale + 1, y / scale]) - river_value
@@ -314,8 +314,7 @@ class Ground:
         base_width = self.river_width * (0.5 + 0.5 * abs(river_value))
         return abs(winding) < base_width
 
-    def calculate_brightness(self, terrain_data, biome):
-        """Calculate brightness based on elevation and biome type"""
+    def _calculate_brightness(self, terrain_data: Any, biome: str):
         elevation = terrain_data['elevation']
         # Base brightness from elevation
         if biome in ['deep_ocean', 'ocean', 'shallow_water']:
@@ -333,8 +332,7 @@ class Ground:
             brightness = min(1.0, brightness * 1.1)  # Mountains catch more light
         return brightness
 
-    def get_biome_color(self, biome, brightness, terrain_data):
-        """Get realistic biome colors with coherent variation"""
+    def _get_biome_color(self, biome: str, brightness: float, terrain_data: Any):
         # Reduced random variation for more coherent look
         def vary_color(base_color, variation=5):
             return tuple(max(0, min(255, int(c * brightness + random.randint(-variation, variation)))) for c in base_color)
@@ -401,19 +399,19 @@ class Ground:
         else:
             return vary_color((100, 100, 100))
 
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface):
         offset = (self.camera_x - self.screen_width // 2, self.camera_y - self.screen_height // 2)
         for chunk in self.visible_chunks.values():
             for segment in chunk:
                 segment.draw(screen, offset)
 
-    def handle_event(self, event):
+    def handle_event(self, event: Any):
         offset = (self.camera_x - self.screen_width // 2, self.camera_y - self.screen_height // 2)
         for chunk in self.visible_chunks.values():
             for segment in chunk:
                 segment.handle_event(event, offset)
 
-    def move_camera(self, dx, dy):
+    def move_camera(self, dx: float, dy: float):
         self.camera_x = dx
         self.camera_y = dy
         self.update_visible_chunks()

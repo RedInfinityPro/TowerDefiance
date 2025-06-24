@@ -22,6 +22,6 @@ class BaseMenu:
         settings_menu.add.button('Return', pygame_menu.events.BACK)
         return settings_menu
     
-    def update_setting(self, key: str, value: int):
+    def update_setting(self, key: str, value: float):
         self.settings[key] = value
         print(f"Updated {key} to {value}")
