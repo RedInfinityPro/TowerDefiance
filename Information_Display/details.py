@@ -81,6 +81,21 @@ class Details_Panel:
         self.money_button.set_text(f"${self.formatMoney}")
         self.speed_button.set_text("Speed {speed}".format(speed=self.speed_num))
         self.date_label.set_text("{Month}: {Day}/{Year}".format(Month=self.month_list[self.month], Day=self.day, Year=self.year))
-
         if self.pause:
             pygame.draw.rect(screen, pygame.Color('red'), pygame.Rect(0, 0, screen.get_size()[0], screen.get_size()[1]), 4)
+
+class GameOptions:
+    def __init__(self, ui_manager: UIManager):
+        self.ui_manager = ui_manager
+        self._build()
+    
+    def _build(self):
+        self.build_dropDownMenu = UIDropDownMenu(relative_rect=((10, 10), (110, 50)), manager=self.ui_manager, options_list=["Capital", "City", "Outpost", "Water Base"], starting_option="Capital")
+        self.view_dropDownMenu = UIDropDownMenu(relative_rect=((120, 10), (110, 50)), manager=self.ui_manager, options_list=["Home", "Capitals", "Citys", "Outposts", "Water Bases"], starting_option="Home")
+        self.settings_dropDownMenu = UIDropDownMenu(relative_rect=((230, 10), (110, 50)), manager=self.ui_manager, options_list=["Pause Menu", "Exit"], starting_option="Exit")
+
+    def update(self, screen: pygame.Surface):
+        screenSize = screen.get_size()
+        self.build_dropDownMenu.set_relative_position((10, screenSize[1] - 50))
+        self.view_dropDownMenu.set_relative_position((120, screenSize[1] - 50))
+        self.settings_dropDownMenu.set_relative_position((230, screenSize[1] - 50))

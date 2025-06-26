@@ -208,8 +208,7 @@ class Weather:
     def draw(self, screen: pygame.Surface, dt: float):
         screen_width, screen_height = screen.get_size()
         # Initialize particles if needed (when weather changes or screen size changes)
-        if (self.current_weather in ["rain", "snow", "snowstorm", "fog"] and 
-            not any([self.rain_particles, self.snow_particles, self.blizzard_particles, self.fog_particles])):
+        if (self.current_weather in ["rain", "snow", "snowstorm", "fog"] and not any([self.rain_particles, self.snow_particles, self.blizzard_particles, self.fog_particles])):
             self._initialize_particles(screen_width, screen_height)
         # Apply lighting
         overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)

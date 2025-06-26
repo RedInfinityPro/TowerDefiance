@@ -3,6 +3,7 @@ import math
 import random
 import pygame
 import sys
+import pygame_gui
 import pygame_menu
 from pygame_menu import themes
 from perlin_noise import PerlinNoise
