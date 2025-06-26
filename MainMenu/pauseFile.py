@@ -4,7 +4,7 @@ from MainMenu.baseFile import *
 class PauseMenu(BaseMenu):
     def __init__(self, screen: pygame.Surface, width: int, height: int):
         super().__init__(screen, width, height)
-        self.resume_game = False
+        self.resume_game = True
         self.exit_to_main = False
         self._create_menus()
     
