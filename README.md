@@ -1,5 +1,4 @@
-[![Static Badge](https://img.shields.io/badge/pygame-brown)](https://pypi.org/project/pygame/)
-[![Static Badge](https://img.shields.io/badge/random-yellow)](https://pypi.org/project/random/)
-[![Static Badge](https://img.shields.io/badge/pygame_menu-blue)](https://pypi.org/project/pygame_menu/)
-[![Static Badge](https://img.shields.io/badge/perlin_noise-pink)](https://pypi.org/project/perlin_noise/)
-[![Static Badge](https://img.shields.io/badge/textwrap-purple)](https://pypi.org/project/textwrap/)
+# TowerDefiance
+This code demonstrates creating a game using various modules like Container, MainMenu, pauseFile, Information_Display, Map.map, and Map.weather, managing particle systems, terrain generation parameters, and user progress.
+
+[![Time](https://badge.fury.io/py/pygame-gui.svg)]
